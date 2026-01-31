@@ -1,0 +1,439 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import Swipeable from '$lib/Swipeable.svelte';
+  
+  const REACTIONS = ['👍', '🤔', '❌', '⚠️', '🔍', '😬'];
+  
+  interface Tile {
+    id: string;
+    type: string;
+    content: Record<string, unknown>;
+    source?: string;
+    tags: string[];
+    read: boolean;
+    starred: boolean;
+    archived: boolean;
+    pinned: boolean;
+    savedForLater: boolean;
+    reactions: string[];
+    created_at: string;
+  }
+  
+  let tiles: Tile[] = [];
+  let filter: string = 'all';
+  let loading = true;
+  
+  async function loadTiles() {
+    const res = await fetch('/api/tiles');
+    tiles = await res.json();
+    loading = false;
+  }
+  
+  async function markRead(id: string, read: boolean) {
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ read })
+    });
+    loadTiles();
+  }
+  
+  async function toggleStar(id: string, starred: boolean) {
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ starred })
+    });
+    loadTiles();
+  }
+  
+  async function archive(id: string) {
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: true })
+    });
+    loadTiles();
+  }
+  
+  async function togglePin(id: string, pinned: boolean) {
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned })
+    });
+    loadTiles();
+  }
+  
+  async function saveForLater(id: string) {
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ savedForLater: true })
+    });
+    loadTiles();
+  }
+  
+  async function toggleReaction(id: string, emoji: string, currentReactions: string[]) {
+    const reactions = currentReactions.includes(emoji)
+      ? currentReactions.filter(r => r !== emoji)
+      : [...currentReactions, emoji];
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reactions })
+    });
+    loadTiles();
+  }
+  
+  function handleDeepDive(tile: Tile) {
+    // For now, just alert. Later this will generate audio/content
+    alert(`Deep dive requested for: ${tile.content.title || tile.type}`);
+  }
+  
+  let showReactionsFor: string | null = null;
+  
+  function formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+  
+  $: filteredTiles = filter === 'all' 
+    ? tiles 
+    : tiles.filter(t => t.type === filter);
+  
+  // All possible tile types (always show these)
+  const allTileTypes = ['note', 'short', 'image', 'article', 'song', 'quote', 'code', 'todo', 'log', 'digest'];
+  
+  // Which types have tiles
+  $: activeTileTypes = new Set(tiles.map(t => t.type));
+  
+  // Count tiles per type
+  $: tileCounts = tiles.reduce((acc, t) => {
+    acc[t.type] = (acc[t.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  onMount(loadTiles);
+</script>
+
+<svelte:head>
+  <title>Agent Dashboard</title>
+</svelte:head>
+
+<!-- Filter tabs -->
+<div class="flex gap-2 mb-6 flex-wrap">
+  <button 
+    class="btn btn-sm rounded-full"
+    class:btn-primary={filter === 'all'}
+    class:btn-ghost={filter !== 'all'}
+    on:click={() => filter = 'all'}
+  >
+    All ({tiles.length})
+  </button>
+  {#each allTileTypes.filter(t => activeTileTypes.has(t)) as type}
+    <button 
+      class="btn btn-sm rounded-full"
+      class:btn-primary={filter === type}
+      class:btn-ghost={filter !== type}
+      on:click={() => filter = type}
+    >
+      {type} ({tileCounts[type] || 0})
+    </button>
+  {/each}
+  {#each allTileTypes.filter(t => !activeTileTypes.has(t)) as type}
+    <button 
+      class="btn btn-sm rounded-full btn-ghost opacity-40"
+      disabled
+    >
+      {type}
+    </button>
+  {/each}
+</div>
+
+{#if loading}
+  <div class="flex justify-center p-8">
+    <span class="loading loading-spinner loading-lg"></span>
+  </div>
+{:else if filteredTiles.length === 0}
+  <div class="hero min-h-[50vh]">
+    <div class="hero-content text-center">
+      <div>
+        <h2 class="text-2xl font-bold">No tiles yet</h2>
+        <p class="py-4 opacity-70">I'll start posting here soon!</p>
+      </div>
+    </div>
+  </div>
+{:else}
+  <div class="flex flex-col gap-5">
+    {#each filteredTiles as tile (tile.id)}
+      <Swipeable
+        on:swipeleft={() => archive(tile.id)}
+        on:swipedown={() => saveForLater(tile.id)}
+        on:swipeup={() => handleDeepDive(tile)}
+      >
+      <div 
+        class="card bg-base-100 shadow-md rounded-2xl border border-base-300"
+        class:ring-2={tile.starred || tile.pinned}
+        class:ring-warning={tile.starred}
+        class:ring-primary={tile.pinned}
+        class:opacity-60={tile.read}
+      >
+        <div class="card-body p-5">
+          <!-- Header -->
+          <div class="flex justify-between items-center text-sm opacity-70">
+            <div class="flex gap-2 items-center">
+              <div class="badge badge-ghost">{tile.type}</div>
+              {#if tile.pinned}
+                <div class="badge badge-primary badge-sm">📌 pinned</div>
+              {/if}
+            </div>
+            <time>{formatDate(tile.created_at)}</time>
+          </div>
+          
+          <!-- Content based on type -->
+          <div class="mt-2">
+            {#if tile.type === 'todo'}
+              <h3 class="card-title text-base">{tile.content.title}</h3>
+              {#if tile.content.assignee}
+                <div class="badge badge-outline badge-sm">{tile.content.assignee}</div>
+              {/if}
+              {#if tile.content.subtasks}
+                <ul class="mt-2 space-y-1">
+                  {#each tile.content.subtasks as subtask}
+                    <li class="flex items-center gap-2">
+                      <input 
+                        type="checkbox" 
+                        checked={subtask.done} 
+                        class="checkbox checkbox-sm checkbox-primary"
+                        disabled
+                      />
+                      <span class:line-through={subtask.done} class:opacity-50={subtask.done}>
+                        {subtask.text}
+                      </span>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+              
+            {:else if tile.type === 'digest'}
+              <h3 class="card-title text-base">{tile.content.title}</h3>
+              <p class="text-sm opacity-80">{tile.content.summary}</p>
+              {#if tile.content.items}
+                <ul class="mt-2 space-y-1">
+                  {#each tile.content.items.slice(0, 4) as item}
+                    <li class="text-sm flex items-start gap-2">
+                      <span class="text-primary">→</span>
+                      <span>{item.headline}</span>
+                      {#if item.url}
+                        <a href={item.url} target="_blank" class="link link-primary text-xs">link</a>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+              {#if tile.content.myTake}
+                <div class="mt-3 p-3 bg-base-300 rounded-lg text-sm italic">
+                  💭 {tile.content.myTake}
+                </div>
+              {/if}
+              
+            {:else if tile.type === 'log'}
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-mono text-sm">{tile.content.action}</span>
+                <div 
+                  class="badge"
+                  class:badge-success={tile.content.status === 'completed'}
+                  class:badge-error={tile.content.status === 'failed'}
+                  class:badge-warning={tile.content.status === 'pending'}
+                >
+                  {tile.content.status}
+                </div>
+                {#if tile.content.duration}
+                  <span class="text-xs opacity-50">{tile.content.duration}</span>
+                {/if}
+              </div>
+              {#if tile.content.details}
+                <p class="text-sm opacity-70 mt-1">{tile.content.details}</p>
+              {/if}
+              
+            {:else if tile.type === 'note'}
+              <h3 class="card-title text-base">{tile.content.title}</h3>
+              <div class="prose prose-sm max-w-none mt-2 opacity-90">
+                {tile.content.body}
+              </div>
+              
+            {:else if tile.type === 'short'}
+              <p>{tile.content.text}</p>
+              {#if tile.content.link}
+                <a href={tile.content.link} target="_blank" class="link link-primary text-sm">
+                  {tile.content.link}
+                </a>
+              {/if}
+              
+            {:else if tile.type === 'article'}
+              <div class="flex gap-3">
+                {#if tile.content.thumbnail}
+                  <img 
+                    src={tile.content.thumbnail} 
+                    alt="" 
+                    class="w-20 h-14 object-cover rounded"
+                  />
+                {/if}
+                <div class="flex-1">
+                  <h3 class="font-semibold text-sm">{tile.content.title}</h3>
+                  <p class="text-xs opacity-60">{tile.content.source}</p>
+                  <p class="text-sm opacity-80 mt-1 line-clamp-2">{tile.content.excerpt}</p>
+                  <a href={tile.content.url} target="_blank" class="link link-primary text-xs">
+                    Read more →
+                  </a>
+                </div>
+              </div>
+              
+            {:else if tile.type === 'song'}
+              <div class="flex gap-3">
+                {#if tile.content.albumArt}
+                  <img 
+                    src={tile.content.albumArt} 
+                    alt="{tile.content.album}" 
+                    class="w-16 h-16 object-cover rounded shadow"
+                  />
+                {/if}
+                <div class="flex-1">
+                  <h3 class="font-semibold">{tile.content.title}</h3>
+                  <p class="text-sm opacity-70">{tile.content.artist}</p>
+                  {#if tile.content.album}
+                    <p class="text-xs opacity-50">{tile.content.album} ({tile.content.year})</p>
+                  {/if}
+                  {#if tile.content.analysis}
+                    <p class="text-sm mt-2 opacity-80">{tile.content.analysis}</p>
+                  {/if}
+                  {#if tile.content.spotifyUrl}
+                    <a href={tile.content.spotifyUrl} target="_blank" class="btn btn-xs btn-primary mt-2">
+                      Open in Spotify
+                    </a>
+                  {/if}
+                </div>
+              </div>
+              
+            {:else if tile.type === 'image'}
+              <figure class="flex flex-col">
+                <img 
+                  src={tile.content.src} 
+                  alt={tile.content.alt || ''} 
+                  class="rounded-lg w-full"
+                />
+                {#if tile.content.caption}
+                  <figcaption class="text-sm text-center opacity-70 mt-3">
+                    {tile.content.caption}
+                  </figcaption>
+                {/if}
+              </figure>
+              
+            {:else if tile.type === 'quote'}
+              <blockquote class="border-l-4 border-primary pl-4 py-2">
+                <p class="text-lg italic">"{tile.content.text}"</p>
+                <footer class="text-sm opacity-70 mt-2">
+                  — {tile.content.author}
+                  {#if tile.content.source}
+                    <cite class="opacity-50">, {tile.content.source}</cite>
+                  {/if}
+                </footer>
+              </blockquote>
+              
+            {:else if tile.type === 'code'}
+              {#if tile.content.title}
+                <h3 class="font-semibold text-sm">{tile.content.title}</h3>
+              {/if}
+              {#if tile.content.description}
+                <p class="text-sm opacity-70">{tile.content.description}</p>
+              {/if}
+              <pre class="bg-base-300 p-3 rounded-lg text-xs overflow-x-auto mt-2"><code>{tile.content.code}</code></pre>
+              
+            {:else}
+              <pre class="text-xs">{JSON.stringify(tile.content, null, 2)}</pre>
+            {/if}
+          </div>
+          
+          <!-- Tags -->
+          {#if tile.tags.length > 0}
+            <div class="flex gap-1 flex-wrap mt-2">
+              {#each tile.tags as tag}
+                <div class="badge badge-sm badge-outline">{tag}</div>
+              {/each}
+            </div>
+          {/if}
+          
+          <!-- Reactions display -->
+          {#if tile.reactions && tile.reactions.length > 0}
+            <div class="flex gap-1 mt-2">
+              {#each tile.reactions as reaction}
+                <span class="text-lg">{reaction}</span>
+              {/each}
+            </div>
+          {/if}
+          
+          <!-- Actions -->
+          <div class="card-actions justify-between mt-2 pt-2 border-t border-base-300">
+            <div class="flex gap-1">
+              <!-- Reaction picker -->
+              <div class="dropdown dropdown-top">
+                <button tabindex="0" class="btn btn-ghost btn-xs">😊</button>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box flex-row gap-1">
+                  {#each REACTIONS as emoji}
+                    <li>
+                      <button 
+                        class="btn btn-ghost btn-sm text-lg"
+                        class:btn-active={tile.reactions?.includes(emoji)}
+                        on:click={() => toggleReaction(tile.id, emoji, tile.reactions || [])}
+                      >
+                        {emoji}
+                      </button>
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            </div>
+            
+            <div class="flex gap-1">
+              <button 
+                class="btn btn-ghost btn-xs"
+                on:click={() => togglePin(tile.id, !tile.pinned)}
+                title={tile.pinned ? 'Unpin' : 'Pin'}
+              >
+                {tile.pinned ? '📌' : '📍'}
+              </button>
+              <button 
+                class="btn btn-ghost btn-xs"
+                on:click={() => markRead(tile.id, !tile.read)}
+                title={tile.read ? 'Mark unread' : 'Mark read'}
+              >
+                {tile.read ? '○' : '●'}
+              </button>
+              <button 
+                class="btn btn-ghost btn-xs"
+                on:click={() => toggleStar(tile.id, !tile.starred)}
+                title={tile.starred ? 'Unstar' : 'Star'}
+              >
+                {tile.starred ? '★' : '☆'}
+              </button>
+              <button 
+                class="btn btn-ghost btn-xs"
+                on:click={() => archive(tile.id)}
+                title="Archive"
+              >
+                🗑
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </Swipeable>
+    {/each}
+  </div>
+{/if}

@@ -1,0 +1,191 @@
+import Database from 'better-sqlite3';
+import { join } from 'path';
+import { homedir } from 'os';
+
+const dbPath = join(homedir(), 'agent-dashboard', 'data', 'tiles.db');
+
+// Ensure data directory exists
+import { mkdirSync } from 'fs';
+mkdirSync(join(homedir(), 'agent-dashboard', 'data'), { recursive: true });
+
+const db = new Database(dbPath);
+
+// Initialize schema
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tiles (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    source TEXT,
+    tags TEXT DEFAULT '[]',
+    read INTEGER DEFAULT 0,
+    starred INTEGER DEFAULT 0,
+    archived INTEGER DEFAULT 0,
+    pinned INTEGER DEFAULT 0,
+    saved_for_later INTEGER DEFAULT 0,
+    reactions TEXT DEFAULT '[]',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tiles_type ON tiles(type);
+  CREATE INDEX IF NOT EXISTS idx_tiles_created ON tiles(created_at);
+  CREATE INDEX IF NOT EXISTS idx_tiles_archived ON tiles(archived);
+  CREATE INDEX IF NOT EXISTS idx_tiles_pinned ON tiles(pinned);
+`);
+
+// Add new columns if they don't exist (migration)
+try {
+  db.exec(`ALTER TABLE tiles ADD COLUMN pinned INTEGER DEFAULT 0`);
+} catch {}
+try {
+  db.exec(`ALTER TABLE tiles ADD COLUMN saved_for_later INTEGER DEFAULT 0`);
+} catch {}
+try {
+  db.exec(`ALTER TABLE tiles ADD COLUMN reactions TEXT DEFAULT '[]'`);
+} catch {}
+
+export interface Tile {
+  id: string;
+  type: string;
+  content: Record<string, unknown>;
+  source?: string;
+  tags: string[];
+  read: boolean;
+  starred: boolean;
+  archived: boolean;
+  pinned: boolean;
+  savedForLater: boolean;
+  reactions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface TileRow {
+  id: string;
+  type: string;
+  content: string;
+  source: string | null;
+  tags: string;
+  read: number;
+  starred: number;
+  archived: number;
+  pinned: number;
+  saved_for_later: number;
+  reactions: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function rowToTile(row: TileRow): Tile {
+  return {
+    id: row.id,
+    type: row.type,
+    content: JSON.parse(row.content),
+    source: row.source ?? undefined,
+    tags: JSON.parse(row.tags),
+    read: row.read === 1,
+    starred: row.starred === 1,
+    archived: row.archived === 1,
+    pinned: row.pinned === 1,
+    savedForLater: row.saved_for_later === 1,
+    reactions: JSON.parse(row.reactions || '[]'),
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+export function getAllTiles(includeArchived = false): Tile[] {
+  const query = includeArchived
+    ? 'SELECT * FROM tiles ORDER BY pinned DESC, created_at DESC'
+    : 'SELECT * FROM tiles WHERE archived = 0 AND saved_for_later = 0 ORDER BY pinned DESC, created_at DESC';
+  const rows = db.prepare(query).all() as TileRow[];
+  return rows.map(rowToTile);
+}
+
+export function getSavedForLaterTiles(): Tile[] {
+  const rows = db.prepare(
+    'SELECT * FROM tiles WHERE saved_for_later = 1 AND archived = 0 ORDER BY created_at DESC'
+  ).all() as TileRow[];
+  return rows.map(rowToTile);
+}
+
+export function getTilesByType(type: string): Tile[] {
+  const rows = db.prepare(
+    'SELECT * FROM tiles WHERE type = ? AND archived = 0 ORDER BY created_at DESC'
+  ).all(type) as TileRow[];
+  return rows.map(rowToTile);
+}
+
+export function getTile(id: string): Tile | null {
+  const row = db.prepare('SELECT * FROM tiles WHERE id = ?').get(id) as TileRow | undefined;
+  return row ? rowToTile(row) : null;
+}
+
+export function createTile(tile: Omit<Tile, 'created_at' | 'updated_at' | 'read' | 'starred' | 'archived'>): Tile {
+  const id = tile.id || crypto.randomUUID();
+  db.prepare(`
+    INSERT INTO tiles (id, type, content, source, tags)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(
+    id,
+    tile.type,
+    JSON.stringify(tile.content),
+    tile.source ?? null,
+    JSON.stringify(tile.tags || [])
+  );
+  return getTile(id)!;
+}
+
+export function updateTile(id: string, updates: Partial<Pick<Tile, 'content' | 'tags' | 'read' | 'starred' | 'archived' | 'pinned' | 'savedForLater' | 'reactions'>>): Tile | null {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  if (updates.content !== undefined) {
+    sets.push('content = ?');
+    values.push(JSON.stringify(updates.content));
+  }
+  if (updates.tags !== undefined) {
+    sets.push('tags = ?');
+    values.push(JSON.stringify(updates.tags));
+  }
+  if (updates.read !== undefined) {
+    sets.push('read = ?');
+    values.push(updates.read ? 1 : 0);
+  }
+  if (updates.starred !== undefined) {
+    sets.push('starred = ?');
+    values.push(updates.starred ? 1 : 0);
+  }
+  if (updates.archived !== undefined) {
+    sets.push('archived = ?');
+    values.push(updates.archived ? 1 : 0);
+  }
+  if (updates.pinned !== undefined) {
+    sets.push('pinned = ?');
+    values.push(updates.pinned ? 1 : 0);
+  }
+  if (updates.savedForLater !== undefined) {
+    sets.push('saved_for_later = ?');
+    values.push(updates.savedForLater ? 1 : 0);
+  }
+  if (updates.reactions !== undefined) {
+    sets.push('reactions = ?');
+    values.push(JSON.stringify(updates.reactions));
+  }
+
+  if (sets.length === 0) return getTile(id);
+
+  sets.push("updated_at = datetime('now')");
+  values.push(id);
+
+  db.prepare(`UPDATE tiles SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+  return getTile(id);
+}
+
+export function deleteTile(id: string): boolean {
+  const result = db.prepare('DELETE FROM tiles WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+export default db;
