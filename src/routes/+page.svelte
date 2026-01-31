@@ -420,6 +420,20 @@
               {/if}
               <pre class="bg-base-300 p-3 rounded-lg text-xs overflow-x-auto mt-2"><code>{tile.content.code}</code></pre>
               
+            {:else if tile.type === 'feedback'}
+              <div class="flex items-start gap-2">
+                <span class="text-xl">💬</span>
+                <div class="flex-1">
+                  <p class="text-sm">{tile.content.text}</p>
+                  {#if tile.content.url}
+                    <p class="text-xs opacity-50 mt-1">From: {tile.content.url}</p>
+                  {/if}
+                  {#if tile.content.screenshot}
+                    <p class="text-xs opacity-50 mt-1">📷 Screenshot attached</p>
+                  {/if}
+                </div>
+              </div>
+              
             {:else}
               <pre class="text-xs">{JSON.stringify(tile.content, null, 2)}</pre>
             {/if}

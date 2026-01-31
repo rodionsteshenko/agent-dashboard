@@ -12,16 +12,23 @@
     sending = true;
     
     try {
-      // Capture screenshot
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(document.body, {
-        scale: 0.5, // Reduce size
-        logging: false
-      });
-      const screenshot = canvas.toDataURL('image/png');
+      // Try to capture screenshot, but don't fail if it doesn't work
+      let screenshot: string | null = null;
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        const canvas = await html2canvas(document.body, {
+          scale: 0.5,
+          logging: false,
+          useCORS: true,
+          allowTaint: true
+        });
+        screenshot = canvas.toDataURL('image/png');
+      } catch (screenshotErr) {
+        console.warn('Screenshot capture failed, sending without:', screenshotErr);
+      }
       
       // Send feedback
-      await fetch('/api/feedback', {
+      const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -31,6 +38,10 @@
           userAgent: navigator.userAgent
         })
       });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       
       sent = true;
       feedbackText = '';
@@ -43,7 +54,7 @@
       
     } catch (err) {
       console.error('Failed to send feedback:', err);
-      alert('Failed to send feedback');
+      alert('Failed to send feedback: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       sending = false;
     }
