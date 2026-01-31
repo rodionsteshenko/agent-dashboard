@@ -56,6 +56,8 @@ db.exec(`
 // Todo migrations
 try { db.exec(`ALTER TABLE todos ADD COLUMN due_date TEXT`); } catch {}
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date)`); } catch {}
+try { db.exec(`ALTER TABLE todos ADD COLUMN project_item_id TEXT`); } catch {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_project_item ON todos(project_item_id)`); } catch {}
 
 // Projects tables
 db.exec(`
@@ -406,6 +408,7 @@ export interface Todo {
   completed_at: string | null;
   created_by: string;
   due_date: string | null;
+  project_item_id: string | null;
 }
 
 interface TodoRow {
@@ -417,6 +420,7 @@ interface TodoRow {
   completed_at: string | null;
   created_by: string;
   due_date: string | null;
+  project_item_id: string | null;
 }
 
 function rowToTodo(row: TodoRow): Todo {
@@ -428,7 +432,8 @@ function rowToTodo(row: TodoRow): Todo {
     created_at: row.created_at,
     completed_at: row.completed_at,
     created_by: row.created_by,
-    due_date: row.due_date
+    due_date: row.due_date,
+    project_item_id: row.project_item_id
   };
 }
 
@@ -453,16 +458,24 @@ export function getTodo(id: string): Todo | null {
   return row ? rowToTodo(row) : null;
 }
 
-export function createTodo(title: string, assignee = 'coby', createdBy = 'coby', dueDate: string | null = null): Todo {
+export function createTodo(title: string, assignee = 'coby', createdBy = 'coby', dueDate: string | null = null, projectItemId: string | null = null): Todo {
   const id = crypto.randomUUID();
   db.prepare(`
-    INSERT INTO todos (id, title, assignee, created_by, due_date)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, title, assignee, createdBy, dueDate);
+    INSERT INTO todos (id, title, assignee, created_by, due_date, project_item_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, title, assignee, createdBy, dueDate, projectItemId);
   return getTodo(id)!;
 }
 
-export function updateTodo(id: string, updates: Partial<Pick<Todo, 'title' | 'assignee' | 'due_date'>>): Todo | null {
+export function getTodosByProjectItem(projectItemId: string, includeCompleted = false): Todo[] {
+  const query = includeCompleted
+    ? 'SELECT * FROM todos WHERE project_item_id = ? ORDER BY completed ASC, created_at DESC'
+    : 'SELECT * FROM todos WHERE project_item_id = ? AND completed = 0 ORDER BY created_at DESC';
+  const rows = db.prepare(query).all(projectItemId) as TodoRow[];
+  return rows.map(rowToTodo);
+}
+
+export function updateTodo(id: string, updates: Partial<Pick<Todo, 'title' | 'assignee' | 'due_date' | 'project_item_id'>>): Todo | null {
   const sets: string[] = [];
   const values: unknown[] = [];
 
@@ -477,6 +490,10 @@ export function updateTodo(id: string, updates: Partial<Pick<Todo, 'title' | 'as
   if (updates.due_date !== undefined) {
     sets.push('due_date = ?');
     values.push(updates.due_date);
+  }
+  if (updates.project_item_id !== undefined) {
+    sets.push('project_item_id = ?');
+    values.push(updates.project_item_id);
   }
 
   if (sets.length === 0) return getTodo(id);

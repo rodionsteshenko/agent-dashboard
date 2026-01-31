@@ -1,16 +1,23 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getAllTodos, getTodosByAssignee, createTodo, searchTodos, getTodosDueSoon } from '$lib/db';
+import { getAllTodos, getTodosByAssignee, getTodosByProjectItem, createTodo, searchTodos, getTodosDueSoon } from '$lib/db';
 
 export const GET: RequestHandler = async ({ url }) => {
   const assignee = url.searchParams.get('assignee');
   const includeCompleted = url.searchParams.get('completed') === 'true';
   const search = url.searchParams.get('search') || url.searchParams.get('q');
   const due = url.searchParams.get('due');
+  const projectItemId = url.searchParams.get('project_item_id');
   
   // Search takes priority
   if (search) {
     const todos = searchTodos(search);
+    return json(todos);
+  }
+  
+  // Filter by project item
+  if (projectItemId) {
+    const todos = getTodosByProjectItem(projectItemId, includeCompleted);
     return json(todos);
   }
   
@@ -75,7 +82,8 @@ export const POST: RequestHandler = async ({ request }) => {
     body.title, 
     body.assignee || 'coby', 
     body.createdBy || 'coby',
-    body.due_date || body.dueDate || null
+    body.due_date || body.dueDate || null,
+    body.project_item_id || body.projectItemId || null
   );
   return json(todo, { status: 201 });
 };

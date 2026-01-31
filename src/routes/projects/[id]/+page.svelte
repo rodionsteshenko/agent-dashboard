@@ -23,6 +23,14 @@
     updated_at: string;
   }
   
+  interface Todo {
+    id: string;
+    title: string;
+    assignee: string;
+    completed: boolean;
+    due_date: string | null;
+  }
+  
   interface Project {
     id: string;
     name: string;
@@ -36,6 +44,9 @@
   let loading = true;
   let activeTab: 'board' | 'docs' = 'board';
   let selectedItem: ProjectItem | null = null;
+  let linkedTodos: Todo[] = [];
+  let loadingTodos = false;
+  let newTodoTitle = '';
   let editingItem = false;
   let editTitle = '';
   let editDescription = '';
@@ -102,6 +113,54 @@
     await fetch(`/api/projects/${projectId}/items/${itemId}`, { method: 'DELETE' });
     selectedItem = null;
     loadProject();
+  }
+  
+  async function selectItem(item: ProjectItem) {
+    selectedItem = item;
+    linkedTodos = [];
+    loadingTodos = true;
+    
+    const res = await fetch(`/api/todos?project_item_id=${item.id}&completed=true`);
+    if (res.ok) {
+      linkedTodos = await res.json();
+    }
+    loadingTodos = false;
+  }
+  
+  async function addLinkedTodo() {
+    if (!selectedItem || !newTodoTitle.trim()) return;
+    
+    await fetch('/api/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: newTodoTitle.trim(),
+        project_item_id: selectedItem.id
+      })
+    });
+    
+    newTodoTitle = '';
+    // Reload linked todos
+    const res = await fetch(`/api/todos?project_item_id=${selectedItem.id}&completed=true`);
+    if (res.ok) {
+      linkedTodos = await res.json();
+    }
+  }
+  
+  async function toggleTodo(todoId: string, completed: boolean) {
+    await fetch(`/api/todos/${todoId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed: !completed })
+    });
+    
+    // Reload linked todos
+    if (selectedItem) {
+      const res = await fetch(`/api/todos?project_item_id=${selectedItem.id}&completed=true`);
+      if (res.ok) {
+        linkedTodos = await res.json();
+      }
+    }
   }
   
   function startEditItem() {
@@ -273,7 +332,7 @@
           {#each getItemsByStatus('backlog') as item (item.id)}
             <button 
               class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow"
-              on:click={() => selectedItem = item}
+              on:click={() => selectItem(item)}
             >
               <div class="card-body p-3">
                 <div class="font-medium text-sm">{item.title}</div>
@@ -297,7 +356,7 @@
           {#each getItemsByStatus('in-progress') as item (item.id)}
             <button 
               class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow border-l-4 border-warning"
-              on:click={() => selectedItem = item}
+              on:click={() => selectItem(item)}
             >
               <div class="card-body p-3">
                 <div class="font-medium text-sm">{item.title}</div>
@@ -323,7 +382,7 @@
           {#each getItemsByStatus('complete') as item (item.id)}
             <button 
               class="card bg-base-100 shadow-sm rounded-lg w-full text-left opacity-70"
-              on:click={() => selectedItem = item}
+              on:click={() => selectItem(item)}
             >
               <div class="card-body p-3">
                 <div class="font-medium text-sm line-through">{item.title}</div>
@@ -459,6 +518,39 @@
             <span class="badge" class:badge-warning={selectedItem.status === 'in-progress'} class:badge-success={selectedItem.status === 'complete'}>
               {selectedItem.status}
             </span>
+          </div>
+          
+          <!-- Linked Todos -->
+          <div class="border-t pt-4 mt-2">
+            <h4 class="font-medium text-sm mb-2">Linked Todos</h4>
+            {#if loadingTodos}
+              <span class="loading loading-spinner loading-sm"></span>
+            {:else}
+              <ul class="space-y-1 mb-2">
+                {#each linkedTodos as todo (todo.id)}
+                  <li class="flex items-center gap-2 text-sm">
+                    <input 
+                      type="checkbox" 
+                      checked={todo.completed}
+                      on:change={() => toggleTodo(todo.id, todo.completed)}
+                      class="checkbox checkbox-xs"
+                    />
+                    <span class:line-through={todo.completed} class:opacity-50={todo.completed}>
+                      {todo.title}
+                    </span>
+                  </li>
+                {/each}
+              </ul>
+              <form on:submit|preventDefault={addLinkedTodo} class="flex gap-2">
+                <input 
+                  type="text" 
+                  bind:value={newTodoTitle}
+                  placeholder="Add a todo..."
+                  class="input input-bordered input-sm flex-1 rounded-lg"
+                />
+                <button type="submit" class="btn btn-sm btn-ghost">+</button>
+              </form>
+            {/if}
           </div>
         </div>
         
