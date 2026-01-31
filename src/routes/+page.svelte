@@ -601,12 +601,11 @@
           <!-- Header -->
           <div class="flex justify-between items-center text-sm opacity-70">
             <div class="flex gap-2 items-center">
-              {@const icon = getTileIcon(tile)}
               <div class="badge badge-ghost gap-1">
-                {#if isImageIcon(icon)}
-                  <img src={icon.src} alt="" class="w-4 h-4 object-contain" />
+                {#if isImageIcon(getTileIcon(tile))}
+                  <img src={(getTileIcon(tile) as {type: 'image', src: string}).src} alt="" class="w-4 h-4 object-contain" />
                 {:else}
-                  <span>{icon}</span>
+                  <span>{getTileIcon(tile)}</span>
                 {/if}
                 <span>{tile.type}</span>
               </div>
@@ -913,12 +912,11 @@
       <!-- Header -->
       <div class="flex justify-between items-center mb-4">
         <div class="flex gap-2 items-center">
-          {@const icon = getTileIcon(tile)}
           <div class="badge badge-ghost gap-1">
-            {#if isImageIcon(icon)}
-              <img src={icon.src} alt="" class="w-4 h-4 object-contain" />
+            {#if isImageIcon(getTileIcon(tile))}
+              <img src={(getTileIcon(tile) as {type: 'image', src: string}).src} alt="" class="w-4 h-4 object-contain" />
             {:else}
-              <span>{icon}</span>
+              <span>{getTileIcon(tile)}</span>
             {/if}
             <span>{tile.type}</span>
           </div>
