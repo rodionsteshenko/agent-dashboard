@@ -30,6 +30,7 @@
   let filter: string = 'all';
   let filterMode: 'new' | 'saved' | 'all' = 'new';
   let loading = true;
+  let showCategoryGrid = false;
   
   async function loadTiles(typeFilter?: string, mode?: string) {
     loading = true;
@@ -157,36 +158,82 @@
   <title>Agent Dashboard</title>
 </svelte:head>
 
-<!-- Filter tabs (horizontal scroll, fixed widths) -->
-<div class="overflow-x-auto pb-2 -mx-4 px-4">
-  <div class="flex gap-2 min-w-max">
-    <button 
-      class="btn btn-sm rounded-full min-w-[60px]"
-      class:btn-primary={filter === 'all'}
-      class:btn-ghost={filter !== 'all'}
-      on:click={() => setFilter('all')}
-    >
-      All
-      {#if tiles.length > 0}
-        <span class="badge badge-xs">{tiles.length}</span>
-      {/if}
-    </button>
-    {#each allTileTypes as type}
-      {@const count = tileCounts[type] || 0}
-      <button 
-        class="btn btn-sm rounded-full min-w-[50px]"
-        class:btn-primary={filter === type}
-        class:btn-ghost={filter !== type}
-        class:opacity-40={count === 0 && filter !== type}
-        on:click={() => setFilter(type)}
-      >
-        {type}
-        {#if count > 0}
-          <span class="badge badge-xs">{count}</span>
+<!-- Filter selector -->
+<div class="mb-4">
+  <div class="flex items-center gap-2">
+    <!-- Main dropdown -->
+    <div class="dropdown">
+      <button tabindex="0" class="btn btn-sm rounded-full gap-1">
+        {filter === 'all' ? 'All' : filter}
+        {#if filter === 'all' && tiles.length > 0}
+          <span class="badge badge-xs badge-primary">{tiles.length}</span>
+        {:else if filter !== 'all' && tileCounts[filter]}
+          <span class="badge badge-xs badge-primary">{tileCounts[filter]}</span>
         {/if}
+        <span class="text-xs">▼</span>
       </button>
-    {/each}
+      <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 mt-1">
+        <li>
+          <button 
+            class:active={filter === 'all'}
+            on:click={() => setFilter('all')}
+          >
+            <span class="flex-1">All</span>
+            <span class="badge badge-sm">{tiles.length}</span>
+          </button>
+        </li>
+        <li class="menu-title text-xs opacity-50 pt-2">Categories</li>
+        {#each allTileTypes as type}
+          {@const count = tileCounts[type] || 0}
+          <li>
+            <button 
+              class:active={filter === type}
+              class:opacity-50={count === 0}
+              on:click={() => setFilter(type)}
+            >
+              <span class="flex-1">{type}</span>
+              <span class="badge badge-sm">{count}</span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </div>
+    
+    <!-- Expand toggle for grid view -->
+    <button 
+      class="btn btn-sm btn-ghost btn-square"
+      on:click={() => showCategoryGrid = !showCategoryGrid}
+      title={showCategoryGrid ? 'Hide categories' : 'Show all categories'}
+    >
+      {showCategoryGrid ? '▲' : '▼'}
+    </button>
   </div>
+  
+  <!-- Expanded grid view -->
+  {#if showCategoryGrid}
+    <div class="grid grid-cols-4 gap-2 mt-3 p-3 bg-base-300 rounded-xl">
+      <button 
+        class="btn btn-sm"
+        class:btn-primary={filter === 'all'}
+        class:btn-ghost={filter !== 'all'}
+        on:click={() => setFilter('all')}
+      >
+        All <span class="badge badge-xs">{tiles.length}</span>
+      </button>
+      {#each allTileTypes as type}
+        {@const count = tileCounts[type] || 0}
+        <button 
+          class="btn btn-sm"
+          class:btn-primary={filter === type}
+          class:btn-ghost={filter !== type}
+          class:opacity-40={count === 0 && filter !== type}
+          on:click={() => setFilter(type)}
+        >
+          {type} <span class="badge badge-xs">{count}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <!-- Mode toggle (only shown when viewing a specific type) -->
