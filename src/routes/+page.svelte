@@ -5,6 +5,7 @@
   const REACTIONS = [
     { emoji: '👍', label: 'Good' },
     { emoji: '🤔', label: 'Interesting' },
+    { emoji: '🥱', label: 'Boring' },
     { emoji: '❌', label: 'Irrelevant' },
     { emoji: '⚠️', label: 'Incorrect' },
     { emoji: '🔍', label: 'Research' },
