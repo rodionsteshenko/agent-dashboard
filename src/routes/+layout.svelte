@@ -3,7 +3,8 @@
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   
-  let theme = 'lofi'; // Light, soft, minimal
+  let theme = $state('lofi');
+  let initialized = $state(false);
   
   const themes = [
     'light', 'dark', 'cupcake', 'garden', 'forest', 'lofi', 
@@ -15,11 +16,14 @@
     if (saved && themes.includes(saved)) {
       theme = saved;
     }
+    initialized = true;
   });
   
-  $: if (browser && theme) {
-    localStorage.setItem('dashboard-theme', theme);
-  }
+  $effect(() => {
+    if (initialized && browser) {
+      localStorage.setItem('dashboard-theme', theme);
+    }
+  });
 </script>
 
 <div data-theme={theme} class="min-h-screen bg-base-200">

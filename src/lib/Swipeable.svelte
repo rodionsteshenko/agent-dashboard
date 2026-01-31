@@ -6,62 +6,61 @@
   let startX = 0;
   let startY = 0;
   let currentX = 0;
-  let currentY = 0;
   let swiping = false;
-  let direction: 'left' | 'right' | 'up' | 'down' | null = null;
+  let isHorizontal: boolean | null = null;
   
   const THRESHOLD = 80;
+  const DIRECTION_LOCK_THRESHOLD = 10; // Lock direction after this much movement
   
   function handleTouchStart(e: TouchEvent) {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     currentX = 0;
-    currentY = 0;
     swiping = true;
-    direction = null;
+    isHorizontal = null;
   }
   
   function handleTouchMove(e: TouchEvent) {
     if (!swiping) return;
     
-    currentX = e.touches[0].clientX - startX;
-    currentY = e.touches[0].clientY - startY;
+    const deltaX = e.touches[0].clientX - startX;
+    const deltaY = e.touches[0].clientY - startY;
     
-    // Determine direction
-    if (Math.abs(currentX) > Math.abs(currentY)) {
-      direction = currentX > 0 ? 'right' : 'left';
-    } else {
-      direction = currentY > 0 ? 'down' : 'up';
+    // Determine if this is a horizontal or vertical gesture
+    if (isHorizontal === null && (Math.abs(deltaX) > DIRECTION_LOCK_THRESHOLD || Math.abs(deltaY) > DIRECTION_LOCK_THRESHOLD)) {
+      isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+    }
+    
+    // Only track horizontal swipes, let vertical scroll through
+    if (isHorizontal) {
+      currentX = deltaX;
+      e.preventDefault(); // Prevent scroll only for horizontal swipes
     }
   }
   
   function handleTouchEnd() {
     if (!swiping) return;
     
-    if (direction === 'left' && currentX < -THRESHOLD) {
-      dispatch('swipeleft');
-    } else if (direction === 'right' && currentX > THRESHOLD) {
-      dispatch('swiperight');
-    } else if (direction === 'up' && currentY < -THRESHOLD) {
-      dispatch('swipeup');
-    } else if (direction === 'down' && currentY > THRESHOLD) {
-      dispatch('swipedown');
+    if (isHorizontal) {
+      if (currentX < -THRESHOLD) {
+        dispatch('swipeleft');
+      } else if (currentX > THRESHOLD) {
+        dispatch('swiperight');
+      }
     }
     
     swiping = false;
     currentX = 0;
-    currentY = 0;
-    direction = null;
+    isHorizontal = null;
   }
   
-  $: transform = swiping ? `translateX(${currentX * 0.3}px)` : '';
-  $: opacity = swiping ? Math.max(0.5, 1 - Math.abs(currentX) / 300) : 1;
+  $: transform = (swiping && isHorizontal) ? `translateX(${currentX * 0.5}px)` : '';
+  $: opacity = (swiping && isHorizontal) ? Math.max(0.5, 1 - Math.abs(currentX) / 300) : 1;
   
   $: swipeIndicator = (() => {
-    if (!swiping) return null;
-    if (direction === 'left' && currentX < -30) return '🗑️ Archive';
-    if (direction === 'down' && currentY > 30) return '📌 Save for later';
-    if (direction === 'up' && currentY < -30) return '🔍 Deep dive';
+    if (!swiping || !isHorizontal) return null;
+    if (currentX < -40) return '🗑️ Dismiss';
+    if (currentX > 40) return '📌 Save for later';
     return null;
   })();
 </script>
@@ -71,7 +70,7 @@
   on:touchstart={handleTouchStart}
   on:touchmove={handleTouchMove}
   on:touchend={handleTouchEnd}
-  style="transform: {transform}; opacity: {opacity}; transition: {swiping ? 'none' : 'all 0.2s ease'};"
+  style="transform: {transform}; opacity: {opacity}; transition: {(swiping && isHorizontal) ? 'none' : 'all 0.2s ease'};"
 >
   {#if swipeIndicator}
     <div class="absolute inset-0 flex items-center justify-center bg-base-300 rounded-2xl -z-10">
@@ -83,6 +82,6 @@
 
 <style>
   .swipeable {
-    touch-action: pan-y;
+    touch-action: pan-y pinch-zoom;
   }
 </style>
