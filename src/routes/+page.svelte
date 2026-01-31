@@ -33,6 +33,9 @@
   let showCategoryGrid = false;
   let totalCounts: Record<string, number> = {};
   let totalAll = 0;
+  let searchQuery = '';
+  let searchMode = false;
+  let searchTimeout: ReturnType<typeof setTimeout>;
   
   async function loadTotalCounts() {
     // Always fetch unfiltered counts for the category selector
@@ -54,6 +57,37 @@
     const res = await fetch(url);
     tiles = await res.json();
     loading = false;
+  }
+  
+  async function doSearch(query: string) {
+    if (!query.trim()) {
+      searchMode = false;
+      loadTiles(filter, filterMode);
+      return;
+    }
+    
+    loading = true;
+    searchMode = true;
+    const res = await fetch(`/api/tiles?q=${encodeURIComponent(query)}`);
+    tiles = await res.json();
+    loading = false;
+  }
+  
+  function handleSearchInput(e: Event) {
+    const value = (e.target as HTMLInputElement).value;
+    searchQuery = value;
+    
+    // Debounce search
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      doSearch(value);
+    }, 300);
+  }
+  
+  function clearSearch() {
+    searchQuery = '';
+    searchMode = false;
+    loadTiles(filter, filterMode);
   }
   
   function setFilter(newFilter: string) {
@@ -174,7 +208,37 @@
   <title>Agent Dashboard</title>
 </svelte:head>
 
-<!-- Filter selector -->
+<!-- Search bar -->
+<div class="mb-4">
+  <div class="relative">
+    <input 
+      type="text"
+      placeholder="Search tiles..."
+      value={searchQuery}
+      on:input={handleSearchInput}
+      class="input input-bordered w-full rounded-xl pl-10"
+      style="font-size: 16px;"
+    />
+    <span class="absolute left-3 top-1/2 -translate-y-1/2 opacity-50">🔍</span>
+    {#if searchQuery}
+      <button 
+        class="absolute right-3 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle"
+        on:click={clearSearch}
+      >
+        ✕
+      </button>
+    {/if}
+  </div>
+  {#if searchMode}
+    <div class="text-sm opacity-70 mt-2">
+      Found {tiles.length} result{tiles.length !== 1 ? 's' : ''} for "{searchQuery}"
+      <button class="link link-primary ml-2" on:click={clearSearch}>Clear</button>
+    </div>
+  {/if}
+</div>
+
+<!-- Filter selector (hidden during search) -->
+{#if !searchMode}
 <div class="mb-4">
   <div class="flex items-center gap-2">
     <!-- Main dropdown -->
@@ -253,9 +317,10 @@
     </div>
   {/if}
 </div>
+{/if}
 
-<!-- Mode toggle (only shown when viewing a specific type) -->
-{#if filter !== 'all'}
+<!-- Mode toggle (only shown when viewing a specific type, and not searching) -->
+{#if filter !== 'all' && !searchMode}
   <div class="flex gap-1 mb-6">
     <button 
       class="btn btn-xs"

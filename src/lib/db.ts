@@ -296,4 +296,20 @@ export function deleteTile(id: string): boolean {
   return result.changes > 0;
 }
 
+export function searchTiles(query: string): Tile[] {
+  const searchPattern = `%${query}%`;
+  const rows = db.prepare(`
+    SELECT * FROM tiles 
+    WHERE archived = 0 
+    AND (
+      content LIKE ? 
+      OR tags LIKE ? 
+      OR type LIKE ?
+    )
+    ORDER BY created_at DESC
+    LIMIT 50
+  `).all(searchPattern, searchPattern, searchPattern) as TileRow[];
+  return rows.map(rowToTile);
+}
+
 export default db;
