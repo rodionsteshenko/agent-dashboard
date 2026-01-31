@@ -321,6 +321,11 @@
               {#if tile.content.details}
                 <p class="text-sm opacity-70 mt-1">{tile.content.details}</p>
               {/if}
+              {#if tile.content.url}
+                <a href={tile.content.url} target="_blank" class="link link-primary text-sm mt-2 inline-block">
+                  View →
+                </a>
+              {/if}
               
             {:else if tile.type === 'note'}
               <h3 class="card-title text-base">{tile.content.title}</h3>

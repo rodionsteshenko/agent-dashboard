@@ -2,6 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import FeedbackButton from '$lib/FeedbackButton.svelte';
   
   let theme = $state('lofi');
   let initialized = $state(false);
@@ -46,4 +47,6 @@
   <main class="container mx-auto px-4 py-6 max-w-3xl">
     <slot />
   </main>
+  
+  <FeedbackButton />
 </div>
