@@ -1146,23 +1146,19 @@
       <!-- Actions -->
       <div class="modal-action mt-6 pt-4 border-t border-base-300">
         <div class="flex gap-2 flex-1">
-          <!-- Reactions -->
-          <div class="dropdown dropdown-top">
-            <button tabindex="0" class="btn btn-ghost">😊 React</button>
-            <div tabindex="0" class="dropdown-content z-[1] shadow-lg bg-base-100 rounded-box mb-2 p-1">
-              <ul class="menu menu-sm">
-                {#each REACTIONS as reaction}
-                  <li>
-                    <button 
-                      class:active={tile.reactions?.includes(reaction.emoji)}
-                      on:click={() => { toggleReaction(tile.id, reaction.emoji, tile.reactions || []); }}
-                    >
-                      {reaction.emoji} {reaction.label}
-                    </button>
-                  </li>
-                {/each}
-              </ul>
-            </div>
+          <!-- Reactions - inline buttons -->
+          <div class="flex flex-wrap gap-1">
+            {#each REACTIONS as reaction}
+              <button 
+                class="btn btn-sm"
+                class:btn-primary={tile.reactions?.includes(reaction.emoji)}
+                class:btn-ghost={!tile.reactions?.includes(reaction.emoji)}
+                on:click={() => { toggleReaction(tile.id, reaction.emoji, tile.reactions || []); }}
+                title={reaction.label}
+              >
+                {reaction.emoji}
+              </button>
+            {/each}
           </div>
           
           {#if tile.reactions && tile.reactions.length > 0}
