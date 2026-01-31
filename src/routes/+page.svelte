@@ -806,11 +806,25 @@
         {#if tile.type === 'brief'}
           <!-- Morning Brief - compact detail view -->
           <div class="space-y-3">
+            <!-- Morning Image -->
+            {#if tile.content.image}
+              <div class="rounded-xl overflow-hidden -mx-2 -mt-2 mb-3">
+                <img src={tile.content.image} alt="Morning" class="w-full h-48 object-cover" />
+              </div>
+            {/if}
+            
             <div class="text-center pb-2">
               <span class="text-3xl">☀️</span>
               <h2 class="text-xl font-bold mt-1">{tile.content.title || 'Good Morning'}</h2>
               <p class="text-sm opacity-70">{tile.content.date}</p>
             </div>
+            
+            <!-- Musings Section -->
+            {#if tile.content.musings}
+              <div class="p-3 bg-primary/10 rounded-xl border-l-4 border-primary">
+                <p class="text-sm italic">💭 {tile.content.musings}</p>
+              </div>
+            {/if}
             
             <!-- Weather Section -->
             {#if tile.content.weather}
@@ -902,6 +916,27 @@
                 {/if}
                 
                 <a href="/todos" class="link link-primary text-xs mt-2 inline-block">View all →</a>
+              </div>
+            {/if}
+            
+            <!-- Snippets Section - news/articles from digests -->
+            {#if tile.content.snippets && tile.content.snippets.length > 0}
+              <div class="p-3 bg-base-200 rounded-xl">
+                <h3 class="font-bold text-sm flex items-center gap-2 mb-2">📰 Headlines</h3>
+                <ul class="space-y-2">
+                  {#each tile.content.snippets.slice(0, 5) as item}
+                    <li class="text-sm">
+                      {#if item.url}
+                        <a href={item.url} target="_blank" class="link link-primary font-medium">{item.title}</a>
+                      {:else}
+                        <span class="font-medium">{item.title}</span>
+                      {/if}
+                      {#if item.source}
+                        <span class="text-xs opacity-50 ml-1">({item.source})</span>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
               </div>
             {/if}
             
