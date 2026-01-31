@@ -732,9 +732,17 @@
               
             {:else if tile.type === 'short'}
               <p>{tile.content.body || tile.content.text || ''}</p>
-              {#if tile.content.source}
-                <span class="text-xs opacity-50">— {tile.content.source}</span>
-              {/if}
+              <div class="text-xs opacity-50 mt-1">
+                {#if tile.content.author}
+                  <span class="font-medium">{tile.content.author}</span>
+                {/if}
+                {#if tile.content.author && tile.content.source}
+                  <span> · </span>
+                {/if}
+                {#if tile.content.source}
+                  <span>{tile.content.source}</span>
+                {/if}
+              </div>
               
             {:else if tile.type === 'article'}
               <div class="flex gap-3">
@@ -1161,12 +1169,20 @@
           
         {:else if tile.type === 'short'}
           <p class="text-lg">{tile.content.body || tile.content.text || ''}</p>
-          {#if tile.content.source}
-            <p class="text-sm opacity-60 mt-2">Source: {tile.content.source}</p>
-          {/if}
+          <div class="mt-3 text-sm opacity-70">
+            {#if tile.content.author}
+              <span class="font-medium">{tile.content.author}</span>
+            {/if}
+            {#if tile.content.author && tile.content.source}
+              <span> · </span>
+            {/if}
+            {#if tile.content.source}
+              <span>{tile.content.source}</span>
+            {/if}
+          </div>
           {#if tile.content.url || tile.content.link}
-            <a href={tile.content.url || tile.content.link} target="_blank" class="link link-primary mt-2 block">
-              View source →
+            <a href={tile.content.url || tile.content.link} target="_blank" class="btn btn-primary btn-sm mt-3">
+              View on {tile.content.source || 'source'} →
             </a>
           {/if}
           
