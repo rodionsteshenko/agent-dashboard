@@ -103,6 +103,18 @@
     loadTiles();
   }
   
+  async function toggleSubtask(tile: Tile, subtaskIndex: number) {
+    const subtasks = [...(tile.content.subtasks as Array<{text: string, done: boolean}>)];
+    subtasks[subtaskIndex] = { ...subtasks[subtaskIndex], done: !subtasks[subtaskIndex].done };
+    const content = { ...tile.content, subtasks };
+    await fetch(`/api/tiles/${tile.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content })
+    });
+    loadTiles(filter, filterMode);
+  }
+  
   let showReactionsFor: string | null = null;
   
   function formatDate(dateStr: string): string {
@@ -137,7 +149,7 @@
   <title>Agent Dashboard</title>
 </svelte:head>
 
-<!-- Filter tabs -->
+<!-- Filter tabs (fixed order) -->
 <div class="flex gap-2 mb-4 flex-wrap">
   <button 
     class="btn btn-sm rounded-full"
@@ -147,22 +159,16 @@
   >
     All ({tiles.length})
   </button>
-  {#each allTileTypes.filter(t => activeTileTypes.has(t)) as type}
+  {#each allTileTypes as type}
+    {@const count = tileCounts[type] || 0}
     <button 
       class="btn btn-sm rounded-full"
       class:btn-primary={filter === type}
       class:btn-ghost={filter !== type}
+      class:opacity-40={count === 0 && filter !== type}
       on:click={() => setFilter(type)}
     >
-      {type} ({tileCounts[type] || 0})
-    </button>
-  {/each}
-  {#each allTileTypes.filter(t => !activeTileTypes.has(t)) as type}
-    <button 
-      class="btn btn-sm rounded-full btn-ghost opacity-40"
-      disabled
-    >
-      {type}
+      {type}{count > 0 ? ` (${count})` : ''}
     </button>
   {/each}
 </div>
@@ -245,15 +251,20 @@
               {/if}
               {#if tile.content.subtasks}
                 <ul class="mt-2 space-y-1">
-                  {#each tile.content.subtasks as subtask}
+                  {#each tile.content.subtasks as subtask, i}
                     <li class="flex items-center gap-2">
                       <input 
                         type="checkbox" 
                         checked={subtask.done} 
-                        class="checkbox checkbox-sm checkbox-primary"
-                        disabled
+                        class="checkbox checkbox-sm checkbox-primary cursor-pointer"
+                        on:change={() => toggleSubtask(tile, i)}
                       />
-                      <span class:line-through={subtask.done} class:opacity-50={subtask.done}>
+                      <span 
+                        class="cursor-pointer"
+                        class:line-through={subtask.done} 
+                        class:opacity-50={subtask.done}
+                        on:click={() => toggleSubtask(tile, i)}
+                      >
                         {subtask.text}
                       </span>
                     </li>
@@ -443,24 +454,10 @@
             <div class="flex gap-1">
               <button 
                 class="btn btn-ghost btn-xs"
-                on:click={() => togglePin(tile.id, !tile.pinned)}
-                title={tile.pinned ? 'Unpin' : 'Pin'}
+                on:click={() => saveForLater(tile.id)}
+                title="Save for later"
               >
-                {tile.pinned ? '📌' : '📍'}
-              </button>
-              <button 
-                class="btn btn-ghost btn-xs"
-                on:click={() => markRead(tile.id, !tile.read)}
-                title={tile.read ? 'Mark unread' : 'Mark read'}
-              >
-                {tile.read ? '○' : '●'}
-              </button>
-              <button 
-                class="btn btn-ghost btn-xs"
-                on:click={() => toggleStar(tile.id, !tile.starred)}
-                title={tile.starred ? 'Unstar' : 'Star'}
-              >
-                {tile.starred ? '★' : '☆'}
+                📥
               </button>
               <button 
                 class="btn btn-ghost btn-xs"
