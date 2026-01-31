@@ -1,12 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getAllTiles, createTile, getTilesByType } from '$lib/db';
+import { getAllTiles, createTile, getTilesByType, type FilterMode } from '$lib/db';
 
 export const GET: RequestHandler = async ({ url }) => {
   const type = url.searchParams.get('type');
+  const mode = (url.searchParams.get('mode') || 'new') as FilterMode;
   const includeArchived = url.searchParams.get('archived') === 'true';
   
-  const tiles = type ? getTilesByType(type) : getAllTiles(includeArchived);
+  const tiles = type ? getTilesByType(type, mode) : getAllTiles(includeArchived);
   return json(tiles);
 };
 

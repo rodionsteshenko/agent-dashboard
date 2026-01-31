@@ -21,12 +21,29 @@
   
   let tiles: Tile[] = [];
   let filter: string = 'all';
+  let filterMode: 'new' | 'saved' | 'all' = 'new';
   let loading = true;
   
-  async function loadTiles() {
-    const res = await fetch('/api/tiles');
+  async function loadTiles(typeFilter?: string, mode?: string) {
+    loading = true;
+    let url = '/api/tiles';
+    if (typeFilter && typeFilter !== 'all') {
+      url += `?type=${typeFilter}&mode=${mode || 'new'}`;
+    }
+    const res = await fetch(url);
     tiles = await res.json();
     loading = false;
+  }
+  
+  function setFilter(newFilter: string) {
+    filter = newFilter;
+    filterMode = 'new';
+    loadTiles(newFilter, 'new');
+  }
+  
+  function setFilterMode(mode: 'new' | 'saved' | 'all') {
+    filterMode = mode;
+    loadTiles(filter, mode);
   }
   
   async function markRead(id: string, read: boolean) {
@@ -86,11 +103,6 @@
     loadTiles();
   }
   
-  function handleDeepDive(tile: Tile) {
-    // For now, just alert. Later this will generate audio/content
-    alert(`Deep dive requested for: ${tile.content.title || tile.type}`);
-  }
-  
   let showReactionsFor: string | null = null;
   
   function formatDate(dateStr: string): string {
@@ -103,9 +115,8 @@
     });
   }
   
-  $: filteredTiles = filter === 'all' 
-    ? tiles 
-    : tiles.filter(t => t.type === filter);
+  // Tiles are now filtered server-side
+  $: filteredTiles = tiles;
   
   // All possible tile types (always show these)
   const allTileTypes = ['note', 'short', 'image', 'article', 'song', 'quote', 'code', 'todo', 'log', 'digest'];
@@ -119,7 +130,7 @@
     return acc;
   }, {} as Record<string, number>);
   
-  onMount(loadTiles);
+  onMount(() => loadTiles());
 </script>
 
 <svelte:head>
@@ -127,12 +138,12 @@
 </svelte:head>
 
 <!-- Filter tabs -->
-<div class="flex gap-2 mb-6 flex-wrap">
+<div class="flex gap-2 mb-4 flex-wrap">
   <button 
     class="btn btn-sm rounded-full"
     class:btn-primary={filter === 'all'}
     class:btn-ghost={filter !== 'all'}
-    on:click={() => filter = 'all'}
+    on:click={() => setFilter('all')}
   >
     All ({tiles.length})
   </button>
@@ -141,7 +152,7 @@
       class="btn btn-sm rounded-full"
       class:btn-primary={filter === type}
       class:btn-ghost={filter !== type}
-      on:click={() => filter = type}
+      on:click={() => setFilter(type)}
     >
       {type} ({tileCounts[type] || 0})
     </button>
@@ -155,6 +166,36 @@
     </button>
   {/each}
 </div>
+
+<!-- Mode toggle (only shown when viewing a specific type) -->
+{#if filter !== 'all'}
+  <div class="flex gap-1 mb-6">
+    <button 
+      class="btn btn-xs"
+      class:btn-primary={filterMode === 'new'}
+      class:btn-ghost={filterMode !== 'new'}
+      on:click={() => setFilterMode('new')}
+    >
+      New
+    </button>
+    <button 
+      class="btn btn-xs"
+      class:btn-primary={filterMode === 'saved'}
+      class:btn-ghost={filterMode !== 'saved'}
+      on:click={() => setFilterMode('saved')}
+    >
+      Saved
+    </button>
+    <button 
+      class="btn btn-xs"
+      class:btn-primary={filterMode === 'all'}
+      class:btn-ghost={filterMode !== 'all'}
+      on:click={() => setFilterMode('all')}
+    >
+      All
+    </button>
+  </div>
+{/if}
 
 {#if loading}
   <div class="flex justify-center p-8">
@@ -174,8 +215,7 @@
     {#each filteredTiles as tile (tile.id)}
       <Swipeable
         on:swipeleft={() => archive(tile.id)}
-        on:swipedown={() => saveForLater(tile.id)}
-        on:swipeup={() => handleDeepDive(tile)}
+        on:swiperight={() => saveForLater(tile.id)}
       >
       <div 
         class="card bg-base-100 shadow-md rounded-2xl border border-base-300"

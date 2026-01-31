@@ -103,10 +103,28 @@ export function getSavedForLaterTiles(): Tile[] {
   return rows.map(rowToTile);
 }
 
-export function getTilesByType(type: string): Tile[] {
-  const rows = db.prepare(
-    'SELECT * FROM tiles WHERE type = ? AND archived = 0 ORDER BY created_at DESC'
-  ).all(type) as TileRow[];
+export type FilterMode = 'new' | 'saved' | 'all';
+
+export function getTilesByType(type: string, mode: FilterMode = 'new'): Tile[] {
+  let query: string;
+  
+  switch (mode) {
+    case 'saved':
+      // Only saved for later items
+      query = 'SELECT * FROM tiles WHERE type = ? AND saved_for_later = 1 AND archived = 0 ORDER BY created_at DESC';
+      break;
+    case 'all':
+      // Everything including archived
+      query = 'SELECT * FROM tiles WHERE type = ? ORDER BY created_at DESC';
+      break;
+    case 'new':
+    default:
+      // New items only (not archived, not saved)
+      query = 'SELECT * FROM tiles WHERE type = ? AND archived = 0 AND saved_for_later = 0 ORDER BY created_at DESC';
+      break;
+  }
+  
+  const rows = db.prepare(query).all(type) as TileRow[];
   return rows.map(rowToTile);
 }
 
