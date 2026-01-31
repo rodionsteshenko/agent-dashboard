@@ -741,11 +741,11 @@
                 <div tabindex="0" class="dropdown-content z-[1] p-2 shadow-lg bg-base-100 rounded-box min-w-[160px]">
                   {#each REACTIONS as reaction}
                     <button 
-                      class="btn btn-ghost btn-sm w-full justify-start gap-2 text-left"
+                      class="btn btn-ghost btn-sm w-full justify-start gap-3 text-left"
                       class:btn-active={tile.reactions?.includes(reaction.emoji)}
                       on:click={() => toggleReaction(tile.id, reaction.emoji, tile.reactions || [])}
                     >
-                      <span class="text-lg">{reaction.emoji}</span>
+                      <span class="text-lg w-6 shrink-0">{reaction.emoji}</span>
                       <span class="text-xs opacity-70">{reaction.label}</span>
                     </button>
                   {/each}
@@ -1150,11 +1150,11 @@
             <div tabindex="0" class="dropdown-content z-[1] p-2 shadow-lg bg-base-100 rounded-box mb-2">
               {#each REACTIONS as reaction}
                 <button 
-                  class="btn btn-ghost btn-sm w-full justify-start gap-2"
+                  class="btn btn-ghost btn-sm w-full justify-start gap-3"
                   class:btn-active={tile.reactions?.includes(reaction.emoji)}
                   on:click={() => { toggleReaction(tile.id, reaction.emoji, tile.reactions || []); }}
                 >
-                  <span class="text-lg">{reaction.emoji}</span>
+                  <span class="text-lg w-6 shrink-0">{reaction.emoji}</span>
                   <span class="text-xs">{reaction.label}</span>
                 </button>
               {/each}
