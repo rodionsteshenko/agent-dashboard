@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getTodo, completeTodo, uncompleteTodo, deleteTodo } from '$lib/db';
+import { getTodo, completeTodo, uncompleteTodo, deleteTodo, updateTodo } from '$lib/db';
 
 export const GET: RequestHandler = async ({ params }) => {
   const todo = getTodo(params.id);
@@ -18,8 +18,19 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     return json({ error: 'Todo not found' }, { status: 404 });
   }
   
+  // Handle completion toggle
   if (body.completed !== undefined) {
     todo = body.completed ? completeTodo(params.id) : uncompleteTodo(params.id);
+  }
+  
+  // Handle other updates (title, assignee, due_date)
+  const updates: Record<string, unknown> = {};
+  if (body.title !== undefined) updates.title = body.title;
+  if (body.assignee !== undefined) updates.assignee = body.assignee;
+  if (body.due_date !== undefined) updates.due_date = body.due_date;
+  
+  if (Object.keys(updates).length > 0) {
+    todo = updateTodo(params.id, updates);
   }
   
   return json(todo);

@@ -9,14 +9,16 @@
     created_at: string;
     completed_at: string | null;
     created_by: string;
+    due_date: string | null;
   }
   
   let todos: Todo[] = [];
   let loading = true;
-  let newTodoTitle = '';
-  let newTodoAssignee = 'coby';
+  let smartInput = '';
   let filterAssignee: string | null = null;
   let showCompleted = false;
+  let feedback = '';
+  let feedbackType: 'success' | 'error' | '' = '';
   
   async function loadTodos() {
     loading = true;
@@ -31,20 +33,32 @@
     loading = false;
   }
   
-  async function addTodo() {
-    if (!newTodoTitle.trim()) return;
+  async function handleSmartInput() {
+    if (!smartInput.trim()) return;
     
-    await fetch('/api/todos', {
+    const res = await fetch('/api/todos/smart', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        title: newTodoTitle.trim(), 
-        assignee: newTodoAssignee,
-        createdBy: 'rodion' // From the UI it's Rodion adding
-      })
+      body: JSON.stringify({ text: smartInput.trim() })
     });
-    newTodoTitle = '';
-    loadTodos();
+    
+    const result = await res.json();
+    
+    if (res.ok) {
+      feedback = result.message;
+      feedbackType = 'success';
+      smartInput = '';
+      loadTodos();
+    } else {
+      feedback = result.message || 'Something went wrong';
+      feedbackType = 'error';
+    }
+    
+    // Clear feedback after 3 seconds
+    setTimeout(() => {
+      feedback = '';
+      feedbackType = '';
+    }, 3000);
   }
   
   async function toggleTodo(id: string, completed: boolean) {
@@ -72,6 +86,30 @@
     });
   }
   
+  function formatDueDate(dateStr: string): string {
+    const date = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.getTime() === today.getTime()) return 'Today';
+    if (date.getTime() === tomorrow.getTime()) return 'Tomorrow';
+    
+    const diffDays = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
+    if (diffDays <= 7) return date.toLocaleDateString('en-US', { weekday: 'short' });
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  
+  function isDueOrOverdue(dateStr: string): boolean {
+    const date = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date <= today;
+  }
+  
   onMount(loadTodos);
 </script>
 
@@ -84,22 +122,23 @@
   <a href="/" class="btn btn-ghost btn-sm">← Back</a>
 </div>
 
-<!-- Add Todo -->
+<!-- Smart Input -->
 <div class="card bg-base-100 shadow-md rounded-2xl mb-6">
   <div class="card-body p-4">
-    <form on:submit|preventDefault={addTodo} class="flex gap-2">
+    <form on:submit|preventDefault={handleSmartInput} class="flex gap-2">
       <input 
         type="text" 
-        bind:value={newTodoTitle}
-        placeholder="Add a todo..."
+        bind:value={smartInput}
+        placeholder="e.g. 'call dentist tomorrow' or 'done with dentist'"
         class="input input-bordered flex-1 rounded-xl"
       />
-      <select bind:value={newTodoAssignee} class="select select-bordered rounded-xl">
-        <option value="coby">Coby</option>
-        <option value="rodion">Rodion</option>
-      </select>
-      <button type="submit" class="btn btn-primary rounded-xl">Add</button>
+      <button type="submit" class="btn btn-primary rounded-xl">Go</button>
     </form>
+    {#if feedback}
+      <div class="mt-2 text-sm" class:text-success={feedbackType === 'success'} class:text-error={feedbackType === 'error'}>
+        {feedback}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -171,11 +210,20 @@
           />
           <div class="flex-1">
             <span class:line-through={todo.completed}>{todo.title}</span>
-            <div class="text-xs opacity-50 mt-1">
+            <div class="text-xs opacity-50 mt-1 flex items-center gap-1 flex-wrap">
               <span class="badge badge-ghost badge-xs">{todo.assignee}</span>
-              · added {formatDate(todo.created_at)}
+              {#if todo.due_date && !todo.completed}
+                <span 
+                  class="badge badge-xs"
+                  class:badge-error={isDueOrOverdue(todo.due_date)}
+                  class:badge-warning={!isDueOrOverdue(todo.due_date)}
+                >
+                  📅 {formatDueDate(todo.due_date)}
+                </span>
+              {/if}
+              <span>· added {formatDate(todo.created_at)}</span>
               {#if todo.completed && todo.completed_at}
-                · done {formatDate(todo.completed_at)}
+                <span>· done {formatDate(todo.completed_at)}</span>
               {/if}
             </div>
           </div>

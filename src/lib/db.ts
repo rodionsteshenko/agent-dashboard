@@ -53,6 +53,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_todos_assignee ON todos(assignee);
 `);
 
+// Todo migrations
+try { db.exec(`ALTER TABLE todos ADD COLUMN due_date TEXT`); } catch {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date)`); } catch {}
+
 // Todo types
 export interface Todo {
   id: string;
@@ -62,6 +66,7 @@ export interface Todo {
   created_at: string;
   completed_at: string | null;
   created_by: string;
+  due_date: string | null;
 }
 
 interface TodoRow {
@@ -72,6 +77,7 @@ interface TodoRow {
   created_at: string;
   completed_at: string | null;
   created_by: string;
+  due_date: string | null;
 }
 
 function rowToTodo(row: TodoRow): Todo {
@@ -82,7 +88,8 @@ function rowToTodo(row: TodoRow): Todo {
     completed: row.completed === 1,
     created_at: row.created_at,
     completed_at: row.completed_at,
-    created_by: row.created_by
+    created_by: row.created_by,
+    due_date: row.due_date
   };
 }
 
@@ -107,13 +114,59 @@ export function getTodo(id: string): Todo | null {
   return row ? rowToTodo(row) : null;
 }
 
-export function createTodo(title: string, assignee = 'coby', createdBy = 'coby'): Todo {
+export function createTodo(title: string, assignee = 'coby', createdBy = 'coby', dueDate: string | null = null): Todo {
   const id = crypto.randomUUID();
   db.prepare(`
-    INSERT INTO todos (id, title, assignee, created_by)
-    VALUES (?, ?, ?, ?)
-  `).run(id, title, assignee, createdBy);
+    INSERT INTO todos (id, title, assignee, created_by, due_date)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, title, assignee, createdBy, dueDate);
   return getTodo(id)!;
+}
+
+export function updateTodo(id: string, updates: Partial<Pick<Todo, 'title' | 'assignee' | 'due_date'>>): Todo | null {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  if (updates.title !== undefined) {
+    sets.push('title = ?');
+    values.push(updates.title);
+  }
+  if (updates.assignee !== undefined) {
+    sets.push('assignee = ?');
+    values.push(updates.assignee);
+  }
+  if (updates.due_date !== undefined) {
+    sets.push('due_date = ?');
+    values.push(updates.due_date);
+  }
+
+  if (sets.length === 0) return getTodo(id);
+  values.push(id);
+
+  db.prepare(`UPDATE todos SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+  return getTodo(id);
+}
+
+export function getTodosDueSoon(withinDays = 2): Todo[] {
+  const rows = db.prepare(`
+    SELECT * FROM todos 
+    WHERE completed = 0 
+    AND due_date IS NOT NULL 
+    AND date(due_date) <= date('now', '+' || ? || ' days')
+    ORDER BY due_date ASC
+  `).all(withinDays) as TodoRow[];
+  return rows.map(rowToTodo);
+}
+
+export function searchTodos(query: string): Todo[] {
+  const searchPattern = `%${query.toLowerCase()}%`;
+  const rows = db.prepare(`
+    SELECT * FROM todos 
+    WHERE completed = 0 
+    AND LOWER(title) LIKE ?
+    ORDER BY created_at DESC
+  `).all(searchPattern) as TodoRow[];
+  return rows.map(rowToTodo);
 }
 
 export function completeTodo(id: string): Todo | null {
