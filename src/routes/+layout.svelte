@@ -41,16 +41,17 @@
     { value: 'full', label: 'Pill', css: '9999px' }
   ];
   
+  // oklch values for DaisyUI compatibility
   const primaryColors = [
     { value: '', label: 'Default', hex: '' },
-    { value: '#3b82f6', label: 'Blue', hex: '#3b82f6' },
-    { value: '#22c55e', label: 'Green', hex: '#22c55e' },
-    { value: '#ef4444', label: 'Red', hex: '#ef4444' },
-    { value: '#a855f7', label: 'Purple', hex: '#a855f7' },
-    { value: '#f97316', label: 'Orange', hex: '#f97316' },
-    { value: '#14b8a6', label: 'Teal', hex: '#14b8a6' },
-    { value: '#ec4899', label: 'Pink', hex: '#ec4899' },
-    { value: '#eab308', label: 'Yellow', hex: '#eab308' }
+    { value: '0.6 0.25 250', label: 'Blue', hex: '#3b82f6' },
+    { value: '0.65 0.2 145', label: 'Green', hex: '#22c55e' },
+    { value: '0.55 0.25 25', label: 'Red', hex: '#ef4444' },
+    { value: '0.6 0.25 300', label: 'Purple', hex: '#a855f7' },
+    { value: '0.65 0.2 45', label: 'Orange', hex: '#f97316' },
+    { value: '0.65 0.15 180', label: 'Teal', hex: '#14b8a6' },
+    { value: '0.65 0.25 330', label: 'Pink', hex: '#ec4899' },
+    { value: '0.75 0.2 90', label: 'Yellow', hex: '#eab308' }
   ];
   
   // Reactive current path
@@ -131,7 +132,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   {#if primaryColor}
-    {@html `<style>[data-theme] { --p: ${primaryColor}; --pf: ${primaryColor}; }</style>`}
+    {@html `<style>[data-theme] { --p: ${primaryColor}; --pf: ${primaryColor}; --pc: 1 0 0; }</style>`}
   {/if}
 </svelte:head>
 
