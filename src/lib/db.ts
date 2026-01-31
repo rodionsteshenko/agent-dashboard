@@ -10,7 +10,7 @@ mkdirSync(join(homedir(), 'agent-dashboard', 'data'), { recursive: true });
 
 const db = new Database(dbPath);
 
-// Initialize schema
+// Initialize schema (base table only)
 db.exec(`
   CREATE TABLE IF NOT EXISTS tiles (
     id TEXT PRIMARY KEY,
@@ -21,9 +21,6 @@ db.exec(`
     read INTEGER DEFAULT 0,
     starred INTEGER DEFAULT 0,
     archived INTEGER DEFAULT 0,
-    pinned INTEGER DEFAULT 0,
-    saved_for_later INTEGER DEFAULT 0,
-    reactions TEXT DEFAULT '[]',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
@@ -31,19 +28,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_tiles_type ON tiles(type);
   CREATE INDEX IF NOT EXISTS idx_tiles_created ON tiles(created_at);
   CREATE INDEX IF NOT EXISTS idx_tiles_archived ON tiles(archived);
-  CREATE INDEX IF NOT EXISTS idx_tiles_pinned ON tiles(pinned);
 `);
 
-// Add new columns if they don't exist (migration)
-try {
-  db.exec(`ALTER TABLE tiles ADD COLUMN pinned INTEGER DEFAULT 0`);
-} catch {}
-try {
-  db.exec(`ALTER TABLE tiles ADD COLUMN saved_for_later INTEGER DEFAULT 0`);
-} catch {}
-try {
-  db.exec(`ALTER TABLE tiles ADD COLUMN reactions TEXT DEFAULT '[]'`);
-} catch {}
+// Migrations - add columns if they don't exist
+try { db.exec(`ALTER TABLE tiles ADD COLUMN pinned INTEGER DEFAULT 0`); } catch {}
+try { db.exec(`ALTER TABLE tiles ADD COLUMN saved_for_later INTEGER DEFAULT 0`); } catch {}
+try { db.exec(`ALTER TABLE tiles ADD COLUMN reactions TEXT DEFAULT '[]'`); } catch {}
+
+// Index for new columns (after migrations)
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_tiles_pinned ON tiles(pinned)`); } catch {}
 
 export interface Tile {
   id: string;
