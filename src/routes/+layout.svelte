@@ -12,6 +12,16 @@
   let primaryColor = $state('');
   let initialized = $state(false);
   let showSettings = $state(false);
+  let isMobile = $state(false);
+  
+  // Device detection
+  function detectMobile(): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  }
+  
+  // Storage key suffix based on device type
+  let deviceSuffix = $derived(isMobile ? '-mobile' : '-desktop');
   
   const themes = [
     'light', 'dark', 'cupcake', 'garden', 'forest', 'lofi', 
@@ -92,28 +102,39 @@
   });
   
   onMount(() => {
-    const savedTheme = localStorage.getItem('dashboard-theme');
-    const savedTextSize = localStorage.getItem('dashboard-text-size');
-    const savedFont = localStorage.getItem('dashboard-font');
-    const savedRadius = localStorage.getItem('dashboard-radius');
-    const savedPrimary = localStorage.getItem('dashboard-primary');
+    // Detect device type first
+    isMobile = detectMobile();
+    const suffix = isMobile ? '-mobile' : '-desktop';
+    
+    // Load device-specific settings
+    const savedTheme = localStorage.getItem('dashboard-theme' + suffix) || localStorage.getItem('dashboard-theme');
+    const savedTextSize = localStorage.getItem('dashboard-text-size' + suffix) || localStorage.getItem('dashboard-text-size');
+    const savedFont = localStorage.getItem('dashboard-font' + suffix) || localStorage.getItem('dashboard-font');
+    const savedRadius = localStorage.getItem('dashboard-radius' + suffix) || localStorage.getItem('dashboard-radius');
+    const savedPrimary = localStorage.getItem('dashboard-primary' + suffix) ?? localStorage.getItem('dashboard-primary');
     
     if (savedTheme && themes.includes(savedTheme)) theme = savedTheme;
-    if (savedTextSize) textSize = parseInt(savedTextSize) || 16;
+    if (savedTextSize) textSize = parseInt(savedTextSize) || 100;
     if (savedFont && fonts.some(f => f.value === savedFont)) fontFamily = savedFont;
     if (savedRadius && radiusOptions.some(r => r.value === savedRadius)) borderRadius = savedRadius;
     if (savedPrimary !== null) primaryColor = savedPrimary;
     
     initialized = true;
+    
+    // Listen for resize to update mobile detection
+    window.addEventListener('resize', () => {
+      isMobile = detectMobile();
+    });
   });
   
   $effect(() => {
     if (initialized && browser) {
-      localStorage.setItem('dashboard-theme', theme);
-      localStorage.setItem('dashboard-text-size', textSize.toString());
-      localStorage.setItem('dashboard-font', fontFamily);
-      localStorage.setItem('dashboard-radius', borderRadius);
-      localStorage.setItem('dashboard-primary', primaryColor);
+      const suffix = isMobile ? '-mobile' : '-desktop';
+      localStorage.setItem('dashboard-theme' + suffix, theme);
+      localStorage.setItem('dashboard-text-size' + suffix, textSize.toString());
+      localStorage.setItem('dashboard-font' + suffix, fontFamily);
+      localStorage.setItem('dashboard-radius' + suffix, borderRadius);
+      localStorage.setItem('dashboard-primary' + suffix, primaryColor);
     }
   });
   
@@ -123,6 +144,7 @@
     fontFamily = 'system';
     borderRadius = 'default';
     primaryColor = '';
+    // Note: This only resets the current device's settings
   }
 </script>
 
@@ -136,7 +158,7 @@
   {/if}
 </svelte:head>
 
-<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()} zoom: {textSize / 100};">
+<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()} {isMobile ? `font-size: ${textSize}%;` : `zoom: ${textSize / 100};`}">
   <!-- Header - Two lines for mobile -->
   <div class="bg-base-100 shadow-sm sticky top-0 z-50 rounded-b-2xl mx-auto max-w-3xl" style={cssVariables()}>
     <!-- Line 1: Title -->
@@ -193,6 +215,7 @@
     <div class="modal-box max-w-lg max-h-[90vh] overflow-y-auto" style="{customStyles()} {cssVariables()}">
       <div class="flex justify-between items-center mb-6">
         <h3 class="font-bold text-lg">Settings</h3>
+        <p class="text-xs opacity-60 mt-1">{isMobile ? '📱 Mobile' : '🖥️ Desktop'} settings (saved separately)</p>
         <button class="btn btn-ghost btn-sm btn-square" on:click={() => showSettings = false}>✕</button>
       </div>
       
