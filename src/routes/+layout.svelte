@@ -173,29 +173,33 @@
           href="/" 
           class="tab tab-sm"
           class:tab-active={currentPath === '/'}
+          title="Feed"
         >
-          📰 Feed
+          📰
         </a>
         <a 
           href="/activity" 
           class="tab tab-sm"
           class:tab-active={currentPath === '/activity'}
+          title="Activity"
         >
-          📜 Activity
+          📜
         </a>
         <a 
           href="/todos" 
           class="tab tab-sm"
           class:tab-active={currentPath === '/todos'}
+          title="Todos"
         >
-          📋 Todos
+          📋
         </a>
         <a 
           href="/projects" 
           class="tab tab-sm"
           class:tab-active={currentPath.startsWith('/projects')}
+          title="Projects"
         >
-          🗂️ Projects
+          🗂️
         </a>
       </div>
       
