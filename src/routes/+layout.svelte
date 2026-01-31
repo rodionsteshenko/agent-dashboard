@@ -6,8 +6,10 @@
   import FeedbackButton from '$lib/FeedbackButton.svelte';
   
   let theme = $state('lofi');
-  let textSize = $state('normal');
+  let textSize = $state(16);
   let fontFamily = $state('system');
+  let borderRadius = $state('default');
+  let primaryColor = $state('');
   let initialized = $state(false);
   let showSettings = $state(false);
   
@@ -16,34 +18,85 @@
     'pastel', 'fantasy', 'autumn', 'coffee', 'winter', 'dim', 'nord', 'sunset'
   ];
   
-  const textSizes = [
-    { value: 'small', label: 'Small', class: 'text-sm' },
-    { value: 'normal', label: 'Normal', class: 'text-base' },
-    { value: 'large', label: 'Large', class: 'text-lg' },
-    { value: 'xl', label: 'Extra Large', class: 'text-xl' }
+  const fonts = [
+    { value: 'system', label: 'System', stack: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+    { value: 'inter', label: 'Inter', stack: '"Inter", -apple-system, sans-serif' },
+    { value: 'georgia', label: 'Georgia', stack: 'Georgia, "Times New Roman", serif' },
+    { value: 'palatino', label: 'Palatino', stack: '"Palatino Linotype", Palatino, serif' },
+    { value: 'times', label: 'Times', stack: '"Times New Roman", Times, serif' },
+    { value: 'arial', label: 'Arial', stack: 'Arial, Helvetica, sans-serif' },
+    { value: 'verdana', label: 'Verdana', stack: 'Verdana, Geneva, sans-serif' },
+    { value: 'trebuchet', label: 'Trebuchet', stack: '"Trebuchet MS", sans-serif' },
+    { value: 'courier', label: 'Courier', stack: '"Courier New", Courier, monospace' },
+    { value: 'monaco', label: 'Monaco', stack: 'Monaco, "Lucida Console", monospace' },
+    { value: 'comic', label: 'Comic Sans', stack: '"Comic Sans MS", cursive' }
   ];
   
-  const fonts = [
-    { value: 'system', label: 'System Default', class: 'font-sans' },
-    { value: 'serif', label: 'Serif', class: 'font-serif' },
-    { value: 'mono', label: 'Monospace', class: 'font-mono' }
+  const radiusOptions = [
+    { value: 'none', label: 'Sharp', css: '0' },
+    { value: 'sm', label: 'Slight', css: '0.25rem' },
+    { value: 'default', label: 'Default', css: '' },
+    { value: 'lg', label: 'Rounded', css: '1rem' },
+    { value: 'xl', label: 'Very Round', css: '1.5rem' },
+    { value: 'full', label: 'Pill', css: '9999px' }
+  ];
+  
+  const primaryColors = [
+    { value: '', label: 'Theme Default', color: '' },
+    { value: '259 94% 51%', label: 'Blue', color: '#3b82f6' },
+    { value: '142 76% 36%', label: 'Green', color: '#22c55e' },
+    { value: '0 84% 60%', label: 'Red', color: '#ef4444' },
+    { value: '280 68% 60%', label: 'Purple', color: '#a855f7' },
+    { value: '25 95% 53%', label: 'Orange', color: '#f97316' },
+    { value: '174 72% 46%', label: 'Teal', color: '#14b8a6' },
+    { value: '330 81% 60%', label: 'Pink', color: '#ec4899' },
+    { value: '47 96% 53%', label: 'Yellow', color: '#eab308' }
   ];
   
   // Reactive current path
   let currentPath = $derived($page.url.pathname);
   
-  // Get current classes
-  let textSizeClass = $derived(textSizes.find(t => t.value === textSize)?.class || 'text-base');
-  let fontClass = $derived(fonts.find(f => f.value === fontFamily)?.class || 'font-sans');
+  // Build custom styles
+  let customStyles = $derived(() => {
+    let styles = `font-size: ${textSize}px;`;
+    
+    const fontDef = fonts.find(f => f.value === fontFamily);
+    if (fontDef) {
+      styles += `font-family: ${fontDef.stack};`;
+    }
+    
+    return styles;
+  });
+  
+  let cssVariables = $derived(() => {
+    let vars = '';
+    
+    // Border radius
+    const radiusDef = radiusOptions.find(r => r.value === borderRadius);
+    if (radiusDef && radiusDef.css) {
+      vars += `--rounded-box: ${radiusDef.css}; --rounded-btn: ${radiusDef.css}; --rounded-badge: ${radiusDef.css};`;
+    }
+    
+    // Primary color
+    if (primaryColor) {
+      vars += `--p: ${primaryColor};`;
+    }
+    
+    return vars;
+  });
   
   onMount(() => {
     const savedTheme = localStorage.getItem('dashboard-theme');
     const savedTextSize = localStorage.getItem('dashboard-text-size');
     const savedFont = localStorage.getItem('dashboard-font');
+    const savedRadius = localStorage.getItem('dashboard-radius');
+    const savedPrimary = localStorage.getItem('dashboard-primary');
     
     if (savedTheme && themes.includes(savedTheme)) theme = savedTheme;
-    if (savedTextSize && textSizes.some(t => t.value === savedTextSize)) textSize = savedTextSize;
+    if (savedTextSize) textSize = parseInt(savedTextSize) || 16;
     if (savedFont && fonts.some(f => f.value === savedFont)) fontFamily = savedFont;
+    if (savedRadius && radiusOptions.some(r => r.value === savedRadius)) borderRadius = savedRadius;
+    if (savedPrimary !== null) primaryColor = savedPrimary;
     
     initialized = true;
   });
@@ -51,15 +104,32 @@
   $effect(() => {
     if (initialized && browser) {
       localStorage.setItem('dashboard-theme', theme);
-      localStorage.setItem('dashboard-text-size', textSize);
+      localStorage.setItem('dashboard-text-size', textSize.toString());
       localStorage.setItem('dashboard-font', fontFamily);
+      localStorage.setItem('dashboard-radius', borderRadius);
+      localStorage.setItem('dashboard-primary', primaryColor);
     }
   });
+  
+  function resetSettings() {
+    theme = 'lofi';
+    textSize = 16;
+    fontFamily = 'system';
+    borderRadius = 'default';
+    primaryColor = '';
+  }
 </script>
 
-<div data-theme={theme} class="min-h-screen bg-base-200 {textSizeClass} {fontClass}">
+<!-- Load Inter font for option -->
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</svelte:head>
+
+<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()}">
   <!-- Header - Two lines for mobile -->
-  <div class="bg-base-100 shadow-sm sticky top-0 z-50 rounded-b-2xl mx-auto max-w-3xl">
+  <div class="bg-base-100 shadow-sm sticky top-0 z-50 rounded-b-2xl mx-auto max-w-3xl" style={cssVariables()}>
     <!-- Line 1: Title -->
     <div class="text-center py-2 border-b border-base-200">
       <span class="text-lg font-semibold">Agent Dashboard</span>
@@ -111,13 +181,13 @@
 <!-- Settings Modal -->
 {#if showSettings}
   <div class="modal modal-open" data-theme={theme}>
-    <div class="modal-box {textSizeClass} {fontClass}">
+    <div class="modal-box max-w-lg max-h-[90vh] overflow-y-auto" style="{customStyles()} {cssVariables()}">
       <div class="flex justify-between items-center mb-6">
         <h3 class="font-bold text-lg">Settings</h3>
         <button class="btn btn-ghost btn-sm btn-square" on:click={() => showSettings = false}>✕</button>
       </div>
       
-      <div class="space-y-6">
+      <div class="space-y-8">
         <!-- Theme -->
         <div>
           <label class="label">
@@ -126,7 +196,7 @@
           <div class="grid grid-cols-4 gap-2">
             {#each themes as t}
               <button 
-                class="btn btn-sm"
+                class="btn btn-xs"
                 class:btn-primary={theme === t}
                 class:btn-ghost={theme !== t}
                 on:click={() => theme = t}
@@ -137,37 +207,88 @@
           </div>
         </div>
         
-        <!-- Text Size -->
+        <!-- Primary Color -->
         <div>
           <label class="label">
-            <span class="label-text font-medium">Text Size</span>
+            <span class="label-text font-medium">Accent Color</span>
           </label>
-          <div class="flex gap-2">
-            {#each textSizes as size}
+          <div class="flex flex-wrap gap-2">
+            {#each primaryColors as pc}
               <button 
-                class="btn btn-sm flex-1"
-                class:btn-primary={textSize === size.value}
-                class:btn-ghost={textSize !== size.value}
-                on:click={() => textSize = size.value}
+                class="btn btn-sm gap-1"
+                class:btn-primary={primaryColor === pc.value}
+                class:btn-ghost={primaryColor !== pc.value}
+                on:click={() => primaryColor = pc.value}
               >
-                {size.label}
+                {#if pc.color}
+                  <span class="w-3 h-3 rounded-full" style="background: {pc.color}"></span>
+                {/if}
+                {pc.label}
               </button>
             {/each}
           </div>
-          <p class="text-xs opacity-50 mt-1">Preview: The quick brown fox jumps over the lazy dog.</p>
         </div>
         
-        <!-- Font -->
+        <!-- Border Radius -->
+        <div>
+          <label class="label">
+            <span class="label-text font-medium">Corner Roundness</span>
+          </label>
+          <div class="flex flex-wrap gap-2">
+            {#each radiusOptions as r}
+              <button 
+                class="btn btn-sm"
+                class:btn-primary={borderRadius === r.value}
+                class:btn-ghost={borderRadius !== r.value}
+                on:click={() => borderRadius = r.value}
+              >
+                {r.label}
+              </button>
+            {/each}
+          </div>
+          <div class="mt-2 flex gap-2">
+            <div class="w-12 h-8 bg-primary" style="border-radius: {radiusOptions.find(r => r.value === borderRadius)?.css || '0.5rem'}"></div>
+            <span class="text-xs opacity-50 self-center">Preview</span>
+          </div>
+        </div>
+        
+        <!-- Text Size Slider -->
+        <div>
+          <label class="label">
+            <span class="label-text font-medium">Text Size: {textSize}px</span>
+          </label>
+          <input 
+            type="range" 
+            min="12" 
+            max="28" 
+            step="1"
+            bind:value={textSize}
+            class="range range-primary range-sm w-full"
+          />
+          <div class="flex justify-between text-xs opacity-50 mt-1">
+            <span>12px</span>
+            <span>16px</span>
+            <span>20px</span>
+            <span>24px</span>
+            <span>28px</span>
+          </div>
+          <p class="text-sm opacity-70 mt-2" style="font-size: {textSize}px">
+            Preview: The quick brown fox jumps over the lazy dog.
+          </p>
+        </div>
+        
+        <!-- Font Family -->
         <div>
           <label class="label">
             <span class="label-text font-medium">Font</span>
           </label>
-          <div class="flex gap-2">
+          <div class="grid grid-cols-3 gap-2">
             {#each fonts as font}
               <button 
-                class="btn btn-sm flex-1 {font.class}"
+                class="btn btn-sm"
                 class:btn-primary={fontFamily === font.value}
                 class:btn-ghost={fontFamily !== font.value}
+                style="font-family: {font.stack}"
                 on:click={() => fontFamily = font.value}
               >
                 {font.label}
@@ -177,7 +298,8 @@
         </div>
       </div>
       
-      <div class="modal-action">
+      <div class="modal-action mt-8 flex justify-between">
+        <button class="btn btn-ghost btn-sm" on:click={resetSettings}>Reset to Defaults</button>
         <button class="btn btn-primary" on:click={() => showSettings = false}>Done</button>
       </div>
     </div>
