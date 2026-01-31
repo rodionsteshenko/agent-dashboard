@@ -177,6 +177,13 @@
           📰 Feed
         </a>
         <a 
+          href="/activity" 
+          class="tab tab-sm"
+          class:tab-active={currentPath === '/activity'}
+        >
+          📜 Activity
+        </a>
+        <a 
           href="/todos" 
           class="tab tab-sm"
           class:tab-active={currentPath === '/todos'}

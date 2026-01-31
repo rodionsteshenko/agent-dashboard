@@ -69,11 +69,13 @@
   }
   
   async function loadTotalCounts() {
-    // Always fetch unfiltered counts for the category selector
+    // Always fetch unfiltered counts for the category selector (excluding logs)
     const res = await fetch('/api/tiles');
     const allTiles: Tile[] = await res.json();
-    totalAll = allTiles.length;
-    totalCounts = allTiles.reduce((acc, t) => {
+    // Exclude log tiles from feed counts
+    const feedTiles = allTiles.filter(t => t.type !== 'log');
+    totalAll = feedTiles.length;
+    totalCounts = feedTiles.reduce((acc, t) => {
       acc[t.type] = (acc[t.type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -86,7 +88,12 @@
       url += `?type=${typeFilter}&mode=${mode || 'new'}`;
     }
     const res = await fetch(url);
-    tiles = await res.json();
+    let fetchedTiles: Tile[] = await res.json();
+    // Exclude log tiles from feed (they go in Activity tab)
+    if (!typeFilter || typeFilter === 'all') {
+      fetchedTiles = fetchedTiles.filter(t => t.type !== 'log');
+    }
+    tiles = fetchedTiles;
     loading = false;
   }
   
