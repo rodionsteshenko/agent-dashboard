@@ -406,7 +406,27 @@
             class="mt-2 text-left w-full cursor-pointer hover:opacity-80 transition-opacity"
             on:click={() => openDetail(tile)}
           >
-            {#if tile.type === 'todo'}
+            {#if tile.type === 'brief'}
+              <!-- Morning Brief tile - summary view -->
+              <div class="flex items-start gap-3">
+                <span class="text-3xl">☀️</span>
+                <div class="flex-1">
+                  <h3 class="font-bold text-lg">{tile.content.title || 'Good Morning'}</h3>
+                  <p class="text-sm opacity-70">{tile.content.date}</p>
+                  <p class="mt-2">{tile.content.summary}</p>
+                  {#if tile.content.weather}
+                    <div class="mt-2 text-sm flex items-center gap-2">
+                      <span>🌡️ {tile.content.weather.current}</span>
+                      {#if tile.content.weather.high}
+                        <span class="opacity-70">H:{tile.content.weather.high}° L:{tile.content.weather.low}°</span>
+                      {/if}
+                    </div>
+                  {/if}
+                  <p class="text-xs text-primary mt-2">Tap for full details →</p>
+                </div>
+              </div>
+              
+            {:else if tile.type === 'todo'}
               <!-- Todo tiles are now activity notifications, not interactive -->
               <div class="flex items-center gap-2">
                 {#if tile.content.action === 'completed'}
@@ -677,7 +697,120 @@
       
       <!-- Full Content -->
       <div class="prose prose-sm max-w-none">
-        {#if tile.type === 'todo'}
+        {#if tile.type === 'brief'}
+          <!-- Morning Brief - full detail view -->
+          <div class="space-y-6">
+            <div class="text-center pb-4 border-b border-base-300">
+              <span class="text-5xl">☀️</span>
+              <h2 class="text-2xl font-bold mt-2">{tile.content.title || 'Good Morning'}</h2>
+              <p class="opacity-70">{tile.content.date}</p>
+            </div>
+            
+            <!-- Weather Section -->
+            {#if tile.content.weather}
+              <div class="p-4 bg-base-200 rounded-xl">
+                <h3 class="font-bold flex items-center gap-2 mb-3">🌤️ Weather</h3>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-2xl font-bold">{tile.content.weather.current}</p>
+                    {#if tile.content.weather.high}
+                      <p class="text-sm opacity-70">High {tile.content.weather.high}° · Low {tile.content.weather.low}°</p>
+                    {/if}
+                  </div>
+                  {#if tile.content.weather.forecast}
+                    <p class="text-sm opacity-80 max-w-[50%] text-right">{tile.content.weather.forecast}</p>
+                  {/if}
+                </div>
+              </div>
+            {/if}
+            
+            <!-- Calendar Section -->
+            {#if tile.content.calendar && tile.content.calendar.length > 0}
+              <div class="p-4 bg-base-200 rounded-xl">
+                <h3 class="font-bold flex items-center gap-2 mb-3">📅 Today's Schedule</h3>
+                <ul class="space-y-2">
+                  {#each tile.content.calendar as event}
+                    <li class="flex items-center gap-3">
+                      <span class="text-sm font-mono opacity-70 w-20">{event.time}</span>
+                      <span>{event.title}</span>
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {:else if tile.content.calendar}
+              <div class="p-4 bg-base-200 rounded-xl">
+                <h3 class="font-bold flex items-center gap-2 mb-2">📅 Today's Schedule</h3>
+                <p class="opacity-70">No events today</p>
+              </div>
+            {/if}
+            
+            <!-- Todos Section -->
+            {#if tile.content.todos}
+              <div class="p-4 bg-base-200 rounded-xl">
+                <h3 class="font-bold flex items-center gap-2 mb-3">✅ Todos</h3>
+                
+                {#if tile.content.todos.overdue && tile.content.todos.overdue.length > 0}
+                  <div class="mb-3">
+                    <p class="text-sm font-medium text-error mb-1">⚠️ Overdue</p>
+                    <ul class="space-y-1 ml-4">
+                      {#each tile.content.todos.overdue as todo}
+                        <li class="text-sm">• {todo.title}</li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/if}
+                
+                {#if tile.content.todos.dueToday && tile.content.todos.dueToday.length > 0}
+                  <div class="mb-3">
+                    <p class="text-sm font-medium text-warning mb-1">📌 Due Today</p>
+                    <ul class="space-y-1 ml-4">
+                      {#each tile.content.todos.dueToday as todo}
+                        <li class="text-sm">• {todo.title}</li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/if}
+                
+                {#if tile.content.todos.upcoming && tile.content.todos.upcoming.length > 0}
+                  <div>
+                    <p class="text-sm font-medium opacity-70 mb-1">📋 Coming Up</p>
+                    <ul class="space-y-1 ml-4">
+                      {#each tile.content.todos.upcoming as todo}
+                        <li class="text-sm opacity-80">• {todo.title} <span class="text-xs opacity-50">({todo.due_date})</span></li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/if}
+                
+                {#if (!tile.content.todos.overdue || tile.content.todos.overdue.length === 0) && 
+                     (!tile.content.todos.dueToday || tile.content.todos.dueToday.length === 0) &&
+                     (!tile.content.todos.upcoming || tile.content.todos.upcoming.length === 0)}
+                  <p class="opacity-70">No pending todos 🎉</p>
+                {/if}
+                
+                <a href="/todos" class="btn btn-sm btn-ghost mt-3">View all todos →</a>
+              </div>
+            {/if}
+            
+            <!-- Highlights Section -->
+            {#if tile.content.highlights && tile.content.highlights.length > 0}
+              <div class="p-4 bg-base-200 rounded-xl">
+                <h3 class="font-bold flex items-center gap-2 mb-3">✨ Highlights</h3>
+                <ul class="space-y-2">
+                  {#each tile.content.highlights as item}
+                    <li class="text-sm">
+                      <span>• {item.title}</span>
+                      {#if item.source}
+                        <span class="opacity-50 text-xs ml-1">({item.source})</span>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
+          </div>
+          
+        {:else if tile.type === 'todo'}
           <div class="flex items-center gap-2 mb-2">
             {#if tile.content.action === 'completed'}
               <span class="text-success text-2xl">✓</span>
