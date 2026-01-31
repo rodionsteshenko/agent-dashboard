@@ -53,6 +53,13 @@
         >
           📋 Todos
         </a>
+        <a 
+          href="/projects" 
+          class="tab tab-sm"
+          class:tab-active={currentPath.startsWith('/projects')}
+        >
+          🗂️ Projects
+        </a>
       </div>
       <select 
         bind:value={theme} 
