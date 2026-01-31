@@ -2,6 +2,16 @@
   import { onMount } from 'svelte';
   
   let isOpen = false;
+  let modalOpen = false;
+  
+  // Hide when any modal is open
+  onMount(() => {
+    const observer = new MutationObserver(() => {
+      modalOpen = document.querySelector('.modal-open') !== null;
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    return () => observer.disconnect();
+  });
   let feedbackText = '';
   let sending = false;
   let sent = false;
@@ -61,7 +71,8 @@
   }
 </script>
 
-<!-- Floating feedback button -->
+<!-- Floating feedback button (hidden when modal is open) -->
+{#if !modalOpen}
 <div class="fixed bottom-4 right-4 z-50">
   {#if isOpen}
     <div class="card bg-base-100 shadow-xl w-80 rounded-2xl">
@@ -105,3 +116,4 @@
     </button>
   {/if}
 </div>
+{/if}

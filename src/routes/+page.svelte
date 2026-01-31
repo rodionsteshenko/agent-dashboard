@@ -39,6 +39,8 @@
   
   // Detail view state
   let selectedTile: Tile | null = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
   
   function openDetail(tile: Tile) {
     selectedTile = tile;
@@ -46,6 +48,23 @@
   
   function closeDetail() {
     selectedTile = null;
+  }
+  
+  function handleModalTouchStart(e: TouchEvent) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }
+  
+  function handleModalTouchEnd(e: TouchEvent) {
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = Math.abs(touchEndY - touchStartY);
+    
+    // Require horizontal swipe (more X than Y movement) and minimum distance
+    if (Math.abs(deltaX) > 80 && deltaY < 100) {
+      closeDetail();
+    }
   }
   
   async function loadTotalCounts() {
@@ -384,9 +403,8 @@
       >
       <div 
         class="card bg-base-100 shadow-md rounded-2xl border border-base-300"
-        class:ring-2={tile.starred || tile.pinned}
+        class:ring-2={tile.starred}
         class:ring-warning={tile.starred}
-        class:ring-primary={tile.pinned}
         class:opacity-60={tile.read}
       >
         <div class="card-body p-5">
@@ -394,9 +412,6 @@
           <div class="flex justify-between items-center text-sm opacity-70">
             <div class="flex gap-2 items-center">
               <div class="badge badge-ghost">{tile.type}</div>
-              {#if tile.pinned}
-                <div class="badge badge-primary badge-sm">📌 pinned</div>
-              {/if}
             </div>
             <time>{formatDate(tile.created_at)}</time>
           </div>
@@ -680,20 +695,25 @@
 {#if selectedTile}
   {@const tile = selectedTile}
   <div class="modal modal-open">
-    <div class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div 
+      class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto"
+      on:touchstart={handleModalTouchStart}
+      on:touchend={handleModalTouchEnd}
+      role="dialog"
+    >
       <!-- Header -->
       <div class="flex justify-between items-center mb-4">
         <div class="flex gap-2 items-center">
           <div class="badge badge-ghost">{tile.type}</div>
-          {#if tile.pinned}
-            <div class="badge badge-primary badge-sm">📌 pinned</div>
-          {/if}
         </div>
         <div class="flex items-center gap-2">
           <time class="text-sm opacity-70">{formatDate(tile.created_at)}</time>
           <button class="btn btn-ghost btn-sm btn-square" on:click={closeDetail}>✕</button>
         </div>
       </div>
+      
+      <!-- Swipe hint -->
+      <p class="text-xs text-center opacity-40 -mt-2 mb-2">← swipe to dismiss →</p>
       
       <!-- Full Content -->
       <div class="prose prose-sm max-w-none">
@@ -1028,12 +1048,6 @@
           {/if}
         </div>
         
-        <button 
-          class="btn btn-ghost"
-          on:click={() => { togglePin(tile.id, tile.pinned); closeDetail(); }}
-        >
-          {tile.pinned ? '📌 Unpin' : '📌 Pin'}
-        </button>
         <button 
           class="btn btn-ghost"
           on:click={() => { saveForLater(tile.id); closeDetail(); }}
