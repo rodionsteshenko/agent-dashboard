@@ -58,6 +58,7 @@ try { db.exec(`ALTER TABLE todos ADD COLUMN due_date TEXT`); } catch {}
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date)`); } catch {}
 try { db.exec(`ALTER TABLE todos ADD COLUMN project_item_id TEXT`); } catch {}
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_project_item ON todos(project_item_id)`); } catch {}
+try { db.exec(`ALTER TABLE todos ADD COLUMN recurrence TEXT`); } catch {} // daily, weekly, monthly, or null
 
 // Projects tables
 db.exec(`
@@ -399,6 +400,8 @@ export function appendToProjectDoc(id: string, text: string): ProjectDoc | null 
 }
 
 // Todo types
+export type Recurrence = 'daily' | 'weekly' | 'monthly' | null;
+
 export interface Todo {
   id: string;
   title: string;
@@ -409,6 +412,7 @@ export interface Todo {
   created_by: string;
   due_date: string | null;
   project_item_id: string | null;
+  recurrence: Recurrence;
 }
 
 interface TodoRow {
@@ -421,6 +425,7 @@ interface TodoRow {
   created_by: string;
   due_date: string | null;
   project_item_id: string | null;
+  recurrence: string | null;
 }
 
 function rowToTodo(row: TodoRow): Todo {
@@ -433,7 +438,8 @@ function rowToTodo(row: TodoRow): Todo {
     completed_at: row.completed_at,
     created_by: row.created_by,
     due_date: row.due_date,
-    project_item_id: row.project_item_id
+    project_item_id: row.project_item_id,
+    recurrence: row.recurrence as Recurrence
   };
 }
 
@@ -458,12 +464,12 @@ export function getTodo(id: string): Todo | null {
   return row ? rowToTodo(row) : null;
 }
 
-export function createTodo(title: string, assignee = 'coby', createdBy = 'coby', dueDate: string | null = null, projectItemId: string | null = null): Todo {
+export function createTodo(title: string, assignee = 'coby', createdBy = 'coby', dueDate: string | null = null, projectItemId: string | null = null, recurrence: Recurrence = null): Todo {
   const id = crypto.randomUUID();
   db.prepare(`
-    INSERT INTO todos (id, title, assignee, created_by, due_date, project_item_id)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, title, assignee, createdBy, dueDate, projectItemId);
+    INSERT INTO todos (id, title, assignee, created_by, due_date, project_item_id, recurrence)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, title, assignee, createdBy, dueDate, projectItemId, recurrence);
   return getTodo(id)!;
 }
 
@@ -475,7 +481,7 @@ export function getTodosByProjectItem(projectItemId: string, includeCompleted = 
   return rows.map(rowToTodo);
 }
 
-export function updateTodo(id: string, updates: Partial<Pick<Todo, 'title' | 'assignee' | 'due_date' | 'project_item_id'>>): Todo | null {
+export function updateTodo(id: string, updates: Partial<Pick<Todo, 'title' | 'assignee' | 'due_date' | 'project_item_id' | 'recurrence'>>): Todo | null {
   const sets: string[] = [];
   const values: unknown[] = [];
 
@@ -494,6 +500,10 @@ export function updateTodo(id: string, updates: Partial<Pick<Todo, 'title' | 'as
   if (updates.project_item_id !== undefined) {
     sets.push('project_item_id = ?');
     values.push(updates.project_item_id);
+  }
+  if (updates.recurrence !== undefined) {
+    sets.push('recurrence = ?');
+    values.push(updates.recurrence);
   }
 
   if (sets.length === 0) return getTodo(id);
@@ -525,10 +535,48 @@ export function searchTodos(query: string): Todo[] {
   return rows.map(rowToTodo);
 }
 
+function getNextDueDate(currentDueDate: string | null, recurrence: Recurrence): string | null {
+  if (!recurrence) return null;
+  
+  const baseDate = currentDueDate ? new Date(currentDueDate) : new Date();
+  
+  switch (recurrence) {
+    case 'daily':
+      baseDate.setDate(baseDate.getDate() + 1);
+      break;
+    case 'weekly':
+      baseDate.setDate(baseDate.getDate() + 7);
+      break;
+    case 'monthly':
+      baseDate.setMonth(baseDate.getMonth() + 1);
+      break;
+  }
+  
+  return baseDate.toISOString().split('T')[0];
+}
+
 export function completeTodo(id: string): Todo | null {
+  const todo = getTodo(id);
+  if (!todo) return null;
+  
+  // Mark as complete
   db.prepare(`
     UPDATE todos SET completed = 1, completed_at = datetime('now') WHERE id = ?
   `).run(id);
+  
+  // If recurring, create the next instance
+  if (todo.recurrence) {
+    const nextDueDate = getNextDueDate(todo.due_date, todo.recurrence);
+    createTodo(
+      todo.title,
+      todo.assignee,
+      todo.created_by,
+      nextDueDate,
+      todo.project_item_id,
+      todo.recurrence
+    );
+  }
+  
   return getTodo(id);
 }
 

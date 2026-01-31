@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   
+  type Recurrence = 'daily' | 'weekly' | 'monthly' | null;
+  
   interface Todo {
     id: string;
     title: string;
@@ -10,6 +12,7 @@
     completed_at: string | null;
     created_by: string;
     due_date: string | null;
+    recurrence: Recurrence;
   }
   
   let todos: Todo[] = [];
@@ -25,6 +28,7 @@
   let editTitle = '';
   let editAssignee = '';
   let editDueDate = '';
+  let editRecurrence: Recurrence = null;
   let saving = false;
   
   async function loadTodos() {
@@ -87,6 +91,7 @@
     editTitle = todo.title;
     editAssignee = todo.assignee;
     editDueDate = todo.due_date || '';
+    editRecurrence = todo.recurrence;
   }
   
   function closeEditModal() {
@@ -94,6 +99,7 @@
     editTitle = '';
     editAssignee = '';
     editDueDate = '';
+    editRecurrence = null;
   }
   
   async function saveEdit() {
@@ -106,7 +112,8 @@
       body: JSON.stringify({
         title: editTitle,
         assignee: editAssignee,
-        due_date: editDueDate || null
+        due_date: editDueDate || null,
+        recurrence: editRecurrence
       })
     });
     
@@ -269,6 +276,11 @@
                   📅 {formatDueDate(todo.due_date)}
                 </span>
               {/if}
+              {#if todo.recurrence}
+                <span class="badge badge-xs badge-info">
+                  🔄 {todo.recurrence}
+                </span>
+              {/if}
               <span>· added {formatDate(todo.created_at)}</span>
               {#if todo.completed && todo.completed_at}
                 <span>· done {formatDate(todo.completed_at)}</span>
@@ -313,7 +325,7 @@
         </select>
       </div>
       
-      <div class="form-control mb-6">
+      <div class="form-control mb-4">
         <label class="label" for="edit-due">
           <span class="label-text">Due Date</span>
         </label>
@@ -323,6 +335,22 @@
           bind:value={editDueDate}
           class="input input-bordered rounded-xl"
         />
+      </div>
+      
+      <div class="form-control mb-6">
+        <label class="label" for="edit-recurrence">
+          <span class="label-text">Repeat</span>
+        </label>
+        <select 
+          id="edit-recurrence"
+          bind:value={editRecurrence}
+          class="select select-bordered rounded-xl"
+        >
+          <option value={null}>No repeat</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
       </div>
       
       <div class="modal-action">

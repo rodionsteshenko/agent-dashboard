@@ -23,11 +23,12 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
     todo = body.completed ? completeTodo(params.id) : uncompleteTodo(params.id);
   }
   
-  // Handle other updates (title, assignee, due_date)
+  // Handle other updates (title, assignee, due_date, recurrence)
   const updates: Record<string, unknown> = {};
   if (body.title !== undefined) updates.title = body.title;
   if (body.assignee !== undefined) updates.assignee = body.assignee;
   if (body.due_date !== undefined) updates.due_date = body.due_date;
+  if (body.recurrence !== undefined) updates.recurrence = body.recurrence;
   
   if (Object.keys(updates).length > 0) {
     todo = updateTodo(params.id, updates);

@@ -83,7 +83,8 @@ export const POST: RequestHandler = async ({ request }) => {
     body.assignee || 'coby', 
     body.createdBy || 'coby',
     body.due_date || body.dueDate || null,
-    body.project_item_id || body.projectItemId || null
+    body.project_item_id || body.projectItemId || null,
+    body.recurrence || null
   );
   return json(todo, { status: 201 });
 };
