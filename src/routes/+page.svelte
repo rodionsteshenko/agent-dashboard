@@ -211,25 +211,27 @@
   
   <!-- Expanded grid view -->
   {#if showCategoryGrid}
-    <div class="grid grid-cols-4 gap-2 mt-3 p-3 bg-base-300 rounded-xl">
+    <div class="grid grid-cols-3 gap-1 mt-3 p-2 bg-base-300 rounded-xl text-sm">
       <button 
-        class="btn btn-sm"
+        class="btn btn-xs justify-between px-2"
         class:btn-primary={filter === 'all'}
         class:btn-ghost={filter !== 'all'}
         on:click={() => setFilter('all')}
       >
-        All <span class="badge badge-xs">{tiles.length}</span>
+        <span class="truncate">All</span>
+        <span class="badge badge-xs ml-1">{tiles.length}</span>
       </button>
       {#each allTileTypes as type}
         {@const count = tileCounts[type] || 0}
         <button 
-          class="btn btn-sm"
+          class="btn btn-xs justify-between px-2"
           class:btn-primary={filter === type}
           class:btn-ghost={filter !== type}
           class:opacity-40={count === 0 && filter !== type}
           on:click={() => setFilter(type)}
         >
-          {type} <span class="badge badge-xs">{count}</span>
+          <span class="truncate">{type}</span>
+          <span class="badge badge-xs ml-1">{count}</span>
         </button>
       {/each}
     </div>
