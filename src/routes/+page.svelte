@@ -607,7 +607,7 @@
                 {/if}
                 <div class="flex-1">
                   <h3 class="font-bold text-lg">{tile.content.title}</h3>
-                  <p class="opacity-70">{tile.content.artist}</p>
+                  <p class="text-base opacity-70">{tile.content.artist}</p>
                   {#if tile.content.album}
                     <p class="text-xs opacity-50">{tile.content.album} ({tile.content.year})</p>
                   {/if}
