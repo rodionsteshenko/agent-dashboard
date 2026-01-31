@@ -119,6 +119,9 @@
     if (savedRadius && radiusOptions.some(r => r.value === savedRadius)) borderRadius = savedRadius;
     if (savedPrimary !== null) primaryColor = savedPrimary;
     
+    // Apply initial font-size to html root
+    document.documentElement.style.fontSize = `${textSize}%`;
+    
     initialized = true;
     
     // Listen for resize to update mobile detection
@@ -135,6 +138,9 @@
       localStorage.setItem('dashboard-font' + suffix, fontFamily);
       localStorage.setItem('dashboard-radius' + suffix, borderRadius);
       localStorage.setItem('dashboard-primary' + suffix, primaryColor);
+      
+      // Apply font-size to html root so ALL rem-based sizes scale
+      document.documentElement.style.fontSize = `${textSize}%`;
     }
   });
   
@@ -144,6 +150,7 @@
     fontFamily = 'system';
     borderRadius = 'default';
     primaryColor = '';
+    document.documentElement.style.fontSize = '100%';
     // Note: This only resets the current device's settings
   }
 </script>
@@ -158,7 +165,7 @@
   {/if}
 </svelte:head>
 
-<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()} {isMobile ? `font-size: ${textSize}%;` : `zoom: ${textSize / 100};`}">
+<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()}">
   <!-- Header - Two lines for mobile -->
   <div class="bg-base-100 shadow-sm sticky top-0 z-50 rounded-b-2xl mx-auto max-w-3xl" style={cssVariables()}>
     <!-- Line 1: Title -->
@@ -291,10 +298,10 @@
           </div>
         </div>
         
-        <!-- Text Size Slider (zoom) -->
+        <!-- Text Size Slider -->
         <div>
           <label class="label">
-            <span class="label-text font-medium">Zoom: {textSize}%</span>
+            <span class="label-text font-medium">Size: {textSize}%</span>
           </label>
           <input 
             type="range" 
