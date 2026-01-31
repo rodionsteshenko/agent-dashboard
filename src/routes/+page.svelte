@@ -1146,17 +1146,16 @@
       <!-- Actions -->
       <div class="modal-action mt-6 pt-4 border-t border-base-300">
         <div class="flex gap-2 flex-1">
-          <!-- Reactions - inline buttons -->
-          <div class="flex flex-wrap gap-1">
+          <!-- Reactions - inline buttons with labels -->
+          <div class="flex flex-wrap gap-2">
             {#each REACTIONS as reaction}
               <button 
-                class="btn btn-sm"
+                class="btn btn-sm gap-1"
                 class:btn-primary={tile.reactions?.includes(reaction.emoji)}
                 class:btn-ghost={!tile.reactions?.includes(reaction.emoji)}
                 on:click={() => { toggleReaction(tile.id, reaction.emoji, tile.reactions || []); }}
-                title={reaction.label}
               >
-                {reaction.emoji}
+                {reaction.emoji} <span class="text-xs">{reaction.label}</span>
               </button>
             {/each}
           </div>
