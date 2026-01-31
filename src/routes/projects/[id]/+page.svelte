@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { marked } from 'marked';
+  import { dndzone, SOURCES, TRIGGERS } from 'svelte-dnd-action';
+  import { flip } from 'svelte/animate';
   
   interface ProjectItem {
     id: string;
@@ -58,6 +60,24 @@
   
   // Board filter
   let assigneeFilter: 'all' | 'coby' | 'rodion' = 'all';
+  
+  // Drag and drop state
+  let backlogItems: ProjectItem[] = [];
+  let inProgressItems: ProjectItem[] = [];
+  let completeItems: ProjectItem[] = [];
+  const flipDurationMs = 200;
+  
+  function updateColumnArrays() {
+    if (!project) return;
+    const filterFn = (i: ProjectItem) => assigneeFilter === 'all' || i.assignee === assigneeFilter;
+    backlogItems = project.items.filter(i => i.status === 'backlog').filter(filterFn).sort((a, b) => a.priority - b.priority);
+    inProgressItems = project.items.filter(i => i.status === 'in-progress').filter(filterFn).sort((a, b) => a.priority - b.priority);
+    completeItems = project.items.filter(i => i.status === 'complete').filter(filterFn).sort((a, b) => a.priority - b.priority);
+  }
+  
+  // Update arrays when project or filter changes
+  $: if (project) updateColumnArrays();
+  $: if (assigneeFilter) updateColumnArrays();
   
   // New item form
   let showNewItem = false;
@@ -231,6 +251,33 @@
     return getItemsByStatus(status).length;
   }
   
+  // Drag and drop handlers
+  function handleDndConsider(status: 'backlog' | 'in-progress' | 'complete', e: CustomEvent) {
+    if (status === 'backlog') backlogItems = e.detail.items;
+    else if (status === 'in-progress') inProgressItems = e.detail.items;
+    else completeItems = e.detail.items;
+  }
+  
+  async function handleDndFinalize(status: 'backlog' | 'in-progress' | 'complete', e: CustomEvent) {
+    if (status === 'backlog') backlogItems = e.detail.items;
+    else if (status === 'in-progress') inProgressItems = e.detail.items;
+    else completeItems = e.detail.items;
+    
+    // Find the item that was dropped and update its status if it changed
+    for (const item of e.detail.items) {
+      if (item.status !== status) {
+        await fetch(`/api/projects/${projectId}/items/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status })
+        });
+      }
+    }
+    
+    // Reload to get updated timestamps
+    loadProject();
+  }
+  
   function formatDate(dateStr: string): string {
     const date = new Date(dateStr + 'Z');
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -361,22 +408,29 @@
       <div class="bg-base-200 rounded-xl p-3">
         <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
           📥 Backlog
-          <span class="badge badge-sm">{getItemsByStatus('backlog').length}</span>
+          <span class="badge badge-sm">{backlogItems.length}</span>
         </h3>
-        <div class="space-y-2">
-          {#each getItemsByStatus('backlog') as item (item.id)}
-            <button 
-              class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow"
-              on:click={() => selectItem(item)}
-            >
-              <div class="card-body p-3">
-                <div class="font-medium text-sm">{item.title}</div>
-                <div class="flex gap-1 mt-1">
-                  <span class="badge badge-xs badge-ghost">{item.assignee}</span>
-                  <span class="badge badge-xs badge-outline">P{item.priority}</span>
+        <div 
+          class="space-y-2 min-h-[100px]"
+          use:dndzone={{ items: backlogItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(0,0,0,0.2)', borderRadius: '8px' } }}
+          on:consider={(e) => handleDndConsider('backlog', e)}
+          on:finalize={(e) => handleDndFinalize('backlog', e)}
+        >
+          {#each backlogItems as item (item.id)}
+            <div animate:flip={{ duration: flipDurationMs }}>
+              <button 
+                class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+                on:click={() => selectItem(item)}
+              >
+                <div class="card-body p-3">
+                  <div class="font-medium text-sm">{item.title}</div>
+                  <div class="flex gap-1 mt-1">
+                    <span class="badge badge-xs badge-ghost">{item.assignee}</span>
+                    <span class="badge badge-xs badge-outline">P{item.priority}</span>
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            </div>
           {/each}
         </div>
       </div>
@@ -385,24 +439,31 @@
       <div class="bg-warning/10 rounded-xl p-3">
         <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
           🔄 In Progress
-          <span class="badge badge-sm badge-warning">{getItemsByStatus('in-progress').length}</span>
+          <span class="badge badge-sm badge-warning">{inProgressItems.length}</span>
         </h3>
-        <div class="space-y-2">
-          {#each getItemsByStatus('in-progress') as item (item.id)}
-            <button 
-              class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow border-l-4 border-warning"
-              on:click={() => selectItem(item)}
-            >
-              <div class="card-body p-3">
-                <div class="font-medium text-sm">{item.title}</div>
-                <div class="flex gap-1 mt-1">
-                  <span class="badge badge-xs badge-ghost">{item.assignee}</span>
-                  {#if item.started_at}
-                    <span class="text-xs opacity-50">Started {formatDate(item.started_at)}</span>
-                  {/if}
+        <div 
+          class="space-y-2 min-h-[100px]"
+          use:dndzone={{ items: inProgressItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(234,179,8,0.5)', borderRadius: '8px' } }}
+          on:consider={(e) => handleDndConsider('in-progress', e)}
+          on:finalize={(e) => handleDndFinalize('in-progress', e)}
+        >
+          {#each inProgressItems as item (item.id)}
+            <div animate:flip={{ duration: flipDurationMs }}>
+              <button 
+                class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow border-l-4 border-warning cursor-grab active:cursor-grabbing"
+                on:click={() => selectItem(item)}
+              >
+                <div class="card-body p-3">
+                  <div class="font-medium text-sm">{item.title}</div>
+                  <div class="flex gap-1 mt-1">
+                    <span class="badge badge-xs badge-ghost">{item.assignee}</span>
+                    {#if item.started_at}
+                      <span class="text-xs opacity-50">Started {formatDate(item.started_at)}</span>
+                    {/if}
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            </div>
           {/each}
         </div>
       </div>
@@ -411,24 +472,31 @@
       <div class="bg-success/10 rounded-xl p-3">
         <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
           ✅ Complete
-          <span class="badge badge-sm badge-success">{getItemsByStatus('complete').length}</span>
+          <span class="badge badge-sm badge-success">{completeItems.length}</span>
         </h3>
-        <div class="space-y-2">
-          {#each getItemsByStatus('complete') as item (item.id)}
-            <button 
-              class="card bg-base-100 shadow-sm rounded-lg w-full text-left opacity-70"
-              on:click={() => selectItem(item)}
-            >
-              <div class="card-body p-3">
-                <div class="font-medium text-sm line-through">{item.title}</div>
-                <div class="flex gap-1 mt-1">
-                  <span class="badge badge-xs badge-ghost">{item.assignee}</span>
-                  {#if item.completed_at}
-                    <span class="text-xs opacity-50">Done {formatDate(item.completed_at)}</span>
-                  {/if}
+        <div 
+          class="space-y-2 min-h-[100px]"
+          use:dndzone={{ items: completeItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(34,197,94,0.5)', borderRadius: '8px' } }}
+          on:consider={(e) => handleDndConsider('complete', e)}
+          on:finalize={(e) => handleDndFinalize('complete', e)}
+        >
+          {#each completeItems as item (item.id)}
+            <div animate:flip={{ duration: flipDurationMs }}>
+              <button 
+                class="card bg-base-100 shadow-sm rounded-lg w-full text-left opacity-70 cursor-grab active:cursor-grabbing"
+                on:click={() => selectItem(item)}
+              >
+                <div class="card-body p-3">
+                  <div class="font-medium text-sm line-through">{item.title}</div>
+                  <div class="flex gap-1 mt-1">
+                    <span class="badge badge-xs badge-ghost">{item.assignee}</span>
+                    {#if item.completed_at}
+                      <span class="text-xs opacity-50">Done {formatDate(item.completed_at)}</span>
+                    {/if}
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            </div>
           {/each}
         </div>
       </div>
