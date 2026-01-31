@@ -346,23 +346,49 @@
     'fitness': '💪',
   };
   
+  // Custom icon images (check /static/icons/ folder)
+  // Format: { key: 'filename.png' } - will render as <img src="/icons/filename.png">
+  const customIcons: Record<string, string> = {
+    // Sources - add your custom icons here
+    // 'bluesky': 'bluesky.png',
+    // 'twitter': 'twitter.png',
+    // 'hacker news': 'hn.png',
+    
+    // Tags
+    // 'gaming': 'gaming.png',
+    // 'marvel': 'marvel.png',
+  };
+  
   // Get the best icon for a tile based on source and tags
-  function getTileIcon(tile: Tile): string {
-    // Check source first
+  // Returns either an emoji string or an object { type: 'image', src: '/icons/...' }
+  function getTileIcon(tile: Tile): string | { type: 'image', src: string } {
     const source = (tile.content?.source || '').toString().toLowerCase();
+    const tags = (tile.tags || []).map(t => t.toLowerCase());
+    
+    // Check for custom icon (source first, then tags)
+    for (const [key, filename] of Object.entries(customIcons)) {
+      if (source.includes(key) || tags.includes(key)) {
+        return { type: 'image', src: `/icons/${filename}` };
+      }
+    }
+    
+    // Fall back to emoji - check source
     for (const [key, emoji] of Object.entries(sourceEmoji)) {
       if (source.includes(key)) return emoji;
     }
     
-    // Check tags
-    const tags = tile.tags || [];
+    // Check tags for emoji
     for (const tag of tags) {
-      const tagLower = tag.toLowerCase();
-      if (tagEmoji[tagLower]) return tagEmoji[tagLower];
+      if (tagEmoji[tag]) return tagEmoji[tag];
     }
     
     // Fall back to type emoji
     return typeEmoji[tile.type] || '📄';
+  }
+  
+  // Helper to check if icon is an image
+  function isImageIcon(icon: string | { type: 'image', src: string }): icon is { type: 'image', src: string } {
+    return typeof icon === 'object' && icon.type === 'image';
   }
   
   // Which types have tiles
@@ -577,8 +603,13 @@
           <!-- Header -->
           <div class="flex justify-between items-center text-sm opacity-70">
             <div class="flex gap-2 items-center">
+              {@const icon = getTileIcon(tile)}
               <div class="badge badge-ghost gap-1">
-                <span>{getTileIcon(tile)}</span>
+                {#if isImageIcon(icon)}
+                  <img src={icon.src} alt="" class="w-4 h-4 object-contain" />
+                {:else}
+                  <span>{icon}</span>
+                {/if}
                 <span>{tile.type}</span>
               </div>
               {#if tile.archived}
@@ -884,8 +915,13 @@
       <!-- Header -->
       <div class="flex justify-between items-center mb-4">
         <div class="flex gap-2 items-center">
+          {@const icon = getTileIcon(tile)}
           <div class="badge badge-ghost gap-1">
-            <span>{getTileIcon(tile)}</span>
+            {#if isImageIcon(icon)}
+              <img src={icon.src} alt="" class="w-4 h-4 object-contain" />
+            {:else}
+              <span>{icon}</span>
+            {/if}
             <span>{tile.type}</span>
           </div>
         </div>
