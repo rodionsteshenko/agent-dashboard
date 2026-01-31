@@ -136,7 +136,7 @@
   {/if}
 </svelte:head>
 
-<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()} font-size: {textSize}%;">
+<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()} zoom: {textSize / 100};">
   <!-- Header - Two lines for mobile -->
   <div class="bg-base-100 shadow-sm sticky top-0 z-50 rounded-b-2xl mx-auto max-w-3xl" style={cssVariables()}>
     <!-- Line 1: Title -->
@@ -190,7 +190,7 @@
 <!-- Settings Modal -->
 {#if showSettings}
   <div class="modal modal-open" data-theme={theme}>
-    <div class="modal-box max-w-lg max-h-[90vh] overflow-y-auto" style="{customStyles()} {cssVariables()} font-size: {textSize}%;">
+    <div class="modal-box max-w-lg max-h-[90vh] overflow-y-auto" style="{customStyles()} {cssVariables()}">
       <div class="flex justify-between items-center mb-6">
         <h3 class="font-bold text-lg">Settings</h3>
         <button class="btn btn-ghost btn-sm btn-square" on:click={() => showSettings = false}>✕</button>
