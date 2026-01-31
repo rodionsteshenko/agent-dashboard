@@ -4,18 +4,21 @@
   const dispatch = createEventDispatcher();
   
   let startX = 0;
+  let startY = 0;
   let currentX = 0;
   let swiping = false;
   let isHorizontal: boolean | null = null;
   let dismissed = false;
   let saved = false;
   
-  const THRESHOLD = 80;
-  const DIRECTION_LOCK_THRESHOLD = 10;
+  const THRESHOLD = 150; // Increased: need to swipe further to trigger
+  const DIRECTION_LOCK_THRESHOLD = 30; // Increased: need more horizontal movement before locking
+  const MAX_VERTICAL_RATIO = 0.5; // Swipe must be mostly horizontal (less than 50% vertical)
   
   function handleTouchStart(e: TouchEvent) {
     if (dismissed || saved) return;
     startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
     currentX = 0;
     swiping = true;
     isHorizontal = null;
@@ -25,10 +28,13 @@
     if (!swiping || dismissed || saved) return;
     
     const deltaX = e.touches[0].clientX - startX;
-    const deltaY = e.touches[0].clientY - (e.touches[0].clientY - deltaX); // approximate
+    const deltaY = e.touches[0].clientY - startY;
     
+    // Only lock to horizontal if it's a deliberate horizontal swipe
     if (isHorizontal === null && Math.abs(deltaX) > DIRECTION_LOCK_THRESHOLD) {
-      isHorizontal = true;
+      // Check if it's mostly horizontal (not diagonal scrolling)
+      const ratio = Math.abs(deltaY) / Math.abs(deltaX);
+      isHorizontal = ratio < MAX_VERTICAL_RATIO;
     }
     
     if (isHorizontal) {

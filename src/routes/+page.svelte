@@ -718,61 +718,59 @@
       <!-- Full Content -->
       <div class="prose prose-sm max-w-none">
         {#if tile.type === 'brief'}
-          <!-- Morning Brief - full detail view -->
-          <div class="space-y-6">
-            <div class="text-center pb-4 border-b border-base-300">
-              <span class="text-5xl">☀️</span>
-              <h2 class="text-2xl font-bold mt-2">{tile.content.title || 'Good Morning'}</h2>
-              <p class="opacity-70">{tile.content.date}</p>
+          <!-- Morning Brief - compact detail view -->
+          <div class="space-y-3">
+            <div class="text-center pb-2">
+              <span class="text-3xl">☀️</span>
+              <h2 class="text-xl font-bold mt-1">{tile.content.title || 'Good Morning'}</h2>
+              <p class="text-sm opacity-70">{tile.content.date}</p>
             </div>
             
             <!-- Weather Section -->
             {#if tile.content.weather}
-              <div class="p-4 bg-base-200 rounded-xl">
-                <h3 class="font-bold flex items-center gap-2 mb-3">🌤️ Weather</h3>
+              <div class="p-3 bg-base-200 rounded-xl">
                 <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-2xl font-bold">{tile.content.weather.current}</p>
-                    {#if tile.content.weather.high}
-                      <p class="text-sm opacity-70">High {tile.content.weather.high}° · Low {tile.content.weather.low}°</p>
-                    {/if}
+                  <div class="flex items-center gap-2">
+                    <span>🌤️</span>
+                    <span class="font-bold">{tile.content.weather.current}</span>
                   </div>
-                  {#if tile.content.weather.forecast}
-                    <p class="text-sm opacity-80 max-w-[50%] text-right">{tile.content.weather.forecast}</p>
+                  {#if tile.content.weather.high}
+                    <span class="text-sm opacity-70">H:{tile.content.weather.high}° L:{tile.content.weather.low}°</span>
                   {/if}
                 </div>
               </div>
             {/if}
             
-            <!-- Calendar Section -->
+            <!-- Calendar Section - only show if has events -->
             {#if tile.content.calendar && tile.content.calendar.length > 0}
-              <div class="p-4 bg-base-200 rounded-xl">
-                <h3 class="font-bold flex items-center gap-2 mb-3">📅 Today's Schedule</h3>
-                <ul class="space-y-2">
+              <div class="p-3 bg-base-200 rounded-xl">
+                <h3 class="font-bold text-sm flex items-center gap-2 mb-2">📅 Schedule</h3>
+                <ul class="space-y-1">
                   {#each tile.content.calendar as event}
-                    <li class="flex items-center gap-3">
-                      <span class="text-sm font-mono opacity-70 w-20">{event.time}</span>
+                    <li class="flex items-center gap-2 text-sm">
+                      <span class="font-mono opacity-70">{event.time}</span>
                       <span>{event.title}</span>
                     </li>
                   {/each}
                 </ul>
               </div>
-            {:else if tile.content.calendar}
-              <div class="p-4 bg-base-200 rounded-xl">
-                <h3 class="font-bold flex items-center gap-2 mb-2">📅 Today's Schedule</h3>
-                <p class="opacity-70">No events today</p>
-              </div>
             {/if}
             
             <!-- Todos Section -->
             {#if tile.content.todos}
-              <div class="p-4 bg-base-200 rounded-xl">
-                <h3 class="font-bold flex items-center gap-2 mb-3">✅ Todos</h3>
+              {@const hasOverdue = tile.content.todos.overdue?.length > 0}
+              {@const hasToday = tile.content.todos.dueToday?.length > 0}
+              {@const hasUpcoming = tile.content.todos.upcoming?.length > 0}
+              {@const hasUndated = tile.content.todos.undated?.length > 0}
+              {@const hasTodos = hasOverdue || hasToday || hasUpcoming || hasUndated}
+              
+              <div class="p-3 bg-base-200 rounded-xl">
+                <h3 class="font-bold text-sm flex items-center gap-2 mb-2">✅ Todos</h3>
                 
-                {#if tile.content.todos.overdue && tile.content.todos.overdue.length > 0}
-                  <div class="mb-3">
-                    <p class="text-sm font-medium text-error mb-1">⚠️ Overdue</p>
-                    <ul class="space-y-1 ml-4">
+                {#if hasOverdue}
+                  <div class="mb-2">
+                    <p class="text-xs font-medium text-error">⚠️ Overdue</p>
+                    <ul class="ml-4">
                       {#each tile.content.todos.overdue as todo}
                         <li class="text-sm">• {todo.title}</li>
                       {/each}
@@ -780,10 +778,10 @@
                   </div>
                 {/if}
                 
-                {#if tile.content.todos.dueToday && tile.content.todos.dueToday.length > 0}
-                  <div class="mb-3">
-                    <p class="text-sm font-medium text-warning mb-1">📌 Due Today</p>
-                    <ul class="space-y-1 ml-4">
+                {#if hasToday}
+                  <div class="mb-2">
+                    <p class="text-xs font-medium text-warning">📌 Due Today</p>
+                    <ul class="ml-4">
                       {#each tile.content.todos.dueToday as todo}
                         <li class="text-sm">• {todo.title}</li>
                       {/each}
@@ -791,39 +789,43 @@
                   </div>
                 {/if}
                 
-                {#if tile.content.todos.upcoming && tile.content.todos.upcoming.length > 0}
-                  <div>
-                    <p class="text-sm font-medium opacity-70 mb-1">📋 Coming Up</p>
-                    <ul class="space-y-1 ml-4">
-                      {#each tile.content.todos.upcoming as todo}
-                        <li class="text-sm opacity-80">• {todo.title} <span class="text-xs opacity-50">({todo.due_date})</span></li>
+                {#if hasUndated}
+                  <div class="mb-2">
+                    <p class="text-xs font-medium opacity-70">📋 Open Tasks</p>
+                    <ul class="ml-4">
+                      {#each tile.content.todos.undated as todo}
+                        <li class="text-sm opacity-80">• {todo.title}</li>
                       {/each}
                     </ul>
                   </div>
                 {/if}
                 
-                {#if (!tile.content.todos.overdue || tile.content.todos.overdue.length === 0) && 
-                     (!tile.content.todos.dueToday || tile.content.todos.dueToday.length === 0) &&
-                     (!tile.content.todos.upcoming || tile.content.todos.upcoming.length === 0)}
-                  <p class="opacity-70">No pending todos 🎉</p>
+                {#if hasUpcoming}
+                  <div>
+                    <p class="text-xs font-medium opacity-50">🔜 Coming Up</p>
+                    <ul class="ml-4">
+                      {#each tile.content.todos.upcoming as todo}
+                        <li class="text-sm opacity-60">• {todo.title} <span class="text-xs">({todo.due_date})</span></li>
+                      {/each}
+                    </ul>
+                  </div>
                 {/if}
                 
-                <a href="/todos" class="btn btn-sm btn-ghost mt-3">View all todos →</a>
+                {#if !hasTodos}
+                  <p class="text-sm opacity-70">All clear! 🎉</p>
+                {/if}
+                
+                <a href="/todos" class="link link-primary text-xs mt-2 inline-block">View all →</a>
               </div>
             {/if}
             
-            <!-- Highlights Section -->
+            <!-- Highlights Section - only show if has items -->
             {#if tile.content.highlights && tile.content.highlights.length > 0}
-              <div class="p-4 bg-base-200 rounded-xl">
-                <h3 class="font-bold flex items-center gap-2 mb-3">✨ Highlights</h3>
-                <ul class="space-y-2">
+              <div class="p-3 bg-base-200 rounded-xl">
+                <h3 class="font-bold text-sm flex items-center gap-2 mb-2">✨ Highlights</h3>
+                <ul class="space-y-1">
                   {#each tile.content.highlights as item}
-                    <li class="text-sm">
-                      <span>• {item.title}</span>
-                      {#if item.source}
-                        <span class="opacity-50 text-xs ml-1">({item.source})</span>
-                      {/if}
-                    </li>
+                    <li class="text-sm">• {item.title}</li>
                   {/each}
                 </ul>
               </div>
