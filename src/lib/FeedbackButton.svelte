@@ -80,7 +80,8 @@
           <textarea 
             bind:value={feedbackText}
             placeholder="What's on your mind? Bug, idea, feedback..."
-            class="textarea textarea-bordered w-full h-24 text-sm rounded-xl"
+            class="textarea textarea-bordered w-full h-24 rounded-xl"
+            style="font-size: 16px;"
             disabled={sending}
           ></textarea>
           <p class="text-xs opacity-50 mt-1">📷 Auto-captures screenshot when you send</p>
