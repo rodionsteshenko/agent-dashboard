@@ -966,7 +966,7 @@
           {/if}
           
         {:else if tile.type === 'article'}
-          <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-4 not-prose">
             {#if tile.content.thumbnail}
               <img 
                 src={tile.content.thumbnail} 
