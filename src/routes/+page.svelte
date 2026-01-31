@@ -31,6 +31,19 @@
   let filterMode: 'new' | 'saved' | 'all' = 'new';
   let loading = true;
   let showCategoryGrid = false;
+  let totalCounts: Record<string, number> = {};
+  let totalAll = 0;
+  
+  async function loadTotalCounts() {
+    // Always fetch unfiltered counts for the category selector
+    const res = await fetch('/api/tiles');
+    const allTiles: Tile[] = await res.json();
+    totalAll = allTiles.length;
+    totalCounts = allTiles.reduce((acc, t) => {
+      acc[t.type] = (acc[t.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }
   
   async function loadTiles(typeFilter?: string, mode?: string) {
     loading = true;
@@ -151,7 +164,10 @@
     return acc;
   }, {} as Record<string, number>);
   
-  onMount(() => loadTiles());
+  onMount(() => {
+    loadTotalCounts();
+    loadTiles();
+  });
 </script>
 
 <svelte:head>
@@ -165,10 +181,10 @@
     <div class="dropdown">
       <button tabindex="0" class="btn btn-sm rounded-full gap-1">
         {filter === 'all' ? 'All' : filter}
-        {#if filter === 'all' && tiles.length > 0}
-          <span class="badge badge-xs badge-primary">{tiles.length}</span>
-        {:else if filter !== 'all' && tileCounts[filter]}
-          <span class="badge badge-xs badge-primary">{tileCounts[filter]}</span>
+        {#if filter === 'all' && totalAll > 0}
+          <span class="badge badge-xs badge-primary">{totalAll}</span>
+        {:else if filter !== 'all' && totalCounts[filter]}
+          <span class="badge badge-xs badge-primary">{totalCounts[filter]}</span>
         {/if}
         <span class="text-xs">▼</span>
       </button>
@@ -179,12 +195,12 @@
             on:click={() => setFilter('all')}
           >
             <span class="flex-1">All</span>
-            <span class="badge badge-sm">{tiles.length}</span>
+            <span class="badge badge-sm">{totalAll}</span>
           </button>
         </li>
         <li class="menu-title text-xs opacity-50 pt-2">Categories</li>
         {#each allTileTypes as type}
-          {@const count = tileCounts[type] || 0}
+          {@const count = totalCounts[type] || 0}
           <li>
             <button 
               class:active={filter === type}
@@ -219,10 +235,10 @@
         on:click={() => setFilter('all')}
       >
         <span class="truncate">All</span>
-        <span class="badge badge-xs ml-1">{tiles.length}</span>
+        <span class="badge badge-xs ml-1">{totalAll}</span>
       </button>
       {#each allTileTypes as type}
-        {@const count = tileCounts[type] || 0}
+        {@const count = totalCounts[type] || 0}
         <button 
           class="btn btn-xs justify-between px-2"
           class:btn-primary={filter === type}
