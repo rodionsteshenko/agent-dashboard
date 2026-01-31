@@ -38,6 +38,103 @@ try { db.exec(`ALTER TABLE tiles ADD COLUMN reactions TEXT DEFAULT '[]'`); } cat
 // Index for new columns (after migrations)
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_tiles_pinned ON tiles(pinned)`); } catch {}
 
+// Todos table (separate from tiles)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS todos (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    assignee TEXT DEFAULT 'coby',
+    completed INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT,
+    created_by TEXT DEFAULT 'coby'
+  );
+  CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed);
+  CREATE INDEX IF NOT EXISTS idx_todos_assignee ON todos(assignee);
+`);
+
+// Todo types
+export interface Todo {
+  id: string;
+  title: string;
+  assignee: string;
+  completed: boolean;
+  created_at: string;
+  completed_at: string | null;
+  created_by: string;
+}
+
+interface TodoRow {
+  id: string;
+  title: string;
+  assignee: string;
+  completed: number;
+  created_at: string;
+  completed_at: string | null;
+  created_by: string;
+}
+
+function rowToTodo(row: TodoRow): Todo {
+  return {
+    id: row.id,
+    title: row.title,
+    assignee: row.assignee,
+    completed: row.completed === 1,
+    created_at: row.created_at,
+    completed_at: row.completed_at,
+    created_by: row.created_by
+  };
+}
+
+export function getAllTodos(includeCompleted = false): Todo[] {
+  const query = includeCompleted
+    ? 'SELECT * FROM todos ORDER BY completed ASC, created_at DESC'
+    : 'SELECT * FROM todos WHERE completed = 0 ORDER BY created_at DESC';
+  const rows = db.prepare(query).all() as TodoRow[];
+  return rows.map(rowToTodo);
+}
+
+export function getTodosByAssignee(assignee: string, includeCompleted = false): Todo[] {
+  const query = includeCompleted
+    ? 'SELECT * FROM todos WHERE assignee = ? ORDER BY completed ASC, created_at DESC'
+    : 'SELECT * FROM todos WHERE assignee = ? AND completed = 0 ORDER BY created_at DESC';
+  const rows = db.prepare(query).all(assignee) as TodoRow[];
+  return rows.map(rowToTodo);
+}
+
+export function getTodo(id: string): Todo | null {
+  const row = db.prepare('SELECT * FROM todos WHERE id = ?').get(id) as TodoRow | undefined;
+  return row ? rowToTodo(row) : null;
+}
+
+export function createTodo(title: string, assignee = 'coby', createdBy = 'coby'): Todo {
+  const id = crypto.randomUUID();
+  db.prepare(`
+    INSERT INTO todos (id, title, assignee, created_by)
+    VALUES (?, ?, ?, ?)
+  `).run(id, title, assignee, createdBy);
+  return getTodo(id)!;
+}
+
+export function completeTodo(id: string): Todo | null {
+  db.prepare(`
+    UPDATE todos SET completed = 1, completed_at = datetime('now') WHERE id = ?
+  `).run(id);
+  return getTodo(id);
+}
+
+export function uncompleteTodo(id: string): Todo | null {
+  db.prepare(`
+    UPDATE todos SET completed = 0, completed_at = NULL WHERE id = ?
+  `).run(id);
+  return getTodo(id);
+}
+
+export function deleteTodo(id: string): boolean {
+  const result = db.prepare('DELETE FROM todos WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 export interface Tile {
   id: string;
   type: string;

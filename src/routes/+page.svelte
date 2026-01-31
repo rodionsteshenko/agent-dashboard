@@ -252,32 +252,33 @@
           <!-- Content based on type -->
           <div class="mt-2">
             {#if tile.type === 'todo'}
-              <h3 class="card-title text-base">{tile.content.title}</h3>
-              {#if tile.content.assignee}
-                <div class="badge badge-outline badge-sm">{tile.content.assignee}</div>
+              <!-- Todo tiles are now activity notifications, not interactive -->
+              <div class="flex items-center gap-2">
+                {#if tile.content.action === 'completed'}
+                  <span class="text-success text-lg">✓</span>
+                {:else if tile.content.action === 'added'}
+                  <span class="text-primary text-lg">+</span>
+                {:else}
+                  <span class="text-info text-lg">•</span>
+                {/if}
+                <div>
+                  <span class="font-medium">{tile.content.who || tile.content.assignee || 'Someone'}</span>
+                  <span class="opacity-70">
+                    {#if tile.content.action === 'completed'}
+                      completed
+                    {:else if tile.content.action === 'added'}
+                      added
+                    {:else}
+                      updated
+                    {/if}
+                  </span>
+                  <span class="font-medium">"{tile.content.title}"</span>
+                </div>
+              </div>
+              {#if tile.content.note}
+                <p class="text-sm opacity-70 mt-1 ml-6">{tile.content.note}</p>
               {/if}
-              {#if tile.content.subtasks}
-                <ul class="mt-2 space-y-1">
-                  {#each tile.content.subtasks as subtask, i}
-                    <li class="flex items-center gap-2">
-                      <input 
-                        type="checkbox" 
-                        checked={subtask.done} 
-                        class="checkbox checkbox-sm checkbox-primary cursor-pointer"
-                        on:change={() => toggleSubtask(tile, i)}
-                      />
-                      <span 
-                        class="cursor-pointer"
-                        class:line-through={subtask.done} 
-                        class:opacity-50={subtask.done}
-                        on:click={() => toggleSubtask(tile, i)}
-                      >
-                        {subtask.text}
-                      </span>
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
+              <a href="/todos" class="link link-primary text-xs mt-2 inline-block">View all todos →</a>
               
             {:else if tile.type === 'digest'}
               <h3 class="card-title text-base">{tile.content.title}</h3>
