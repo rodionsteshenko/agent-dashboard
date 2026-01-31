@@ -10,6 +10,7 @@
   let fontFamily = $state('system');
   let borderRadius = $state('default');
   let primaryColor = $state('');
+  let dashboardName = $state('Agent Dashboard');
   let initialized = $state(false);
   let showSettings = $state(false);
   let isMobile = $state(false);
@@ -112,12 +113,14 @@
     const savedFont = localStorage.getItem('dashboard-font' + suffix) || localStorage.getItem('dashboard-font');
     const savedRadius = localStorage.getItem('dashboard-radius' + suffix) || localStorage.getItem('dashboard-radius');
     const savedPrimary = localStorage.getItem('dashboard-primary' + suffix) ?? localStorage.getItem('dashboard-primary');
+    const savedName = localStorage.getItem('dashboard-name');
     
     if (savedTheme && themes.includes(savedTheme)) theme = savedTheme;
     if (savedTextSize) textSize = parseInt(savedTextSize) || 100;
     if (savedFont && fonts.some(f => f.value === savedFont)) fontFamily = savedFont;
     if (savedRadius && radiusOptions.some(r => r.value === savedRadius)) borderRadius = savedRadius;
     if (savedPrimary !== null) primaryColor = savedPrimary;
+    if (savedName) dashboardName = savedName;
     
     // Apply initial font-size to html root
     document.documentElement.style.fontSize = `${textSize}%`;
@@ -138,6 +141,7 @@
       localStorage.setItem('dashboard-font' + suffix, fontFamily);
       localStorage.setItem('dashboard-radius' + suffix, borderRadius);
       localStorage.setItem('dashboard-primary' + suffix, primaryColor);
+      localStorage.setItem('dashboard-name', dashboardName);
       
       // Apply font-size to html root so ALL rem-based sizes scale
       document.documentElement.style.fontSize = `${textSize}%`;
@@ -150,6 +154,7 @@
     fontFamily = 'system';
     borderRadius = 'default';
     primaryColor = '';
+    dashboardName = 'Agent Dashboard';
     document.documentElement.style.fontSize = '100%';
     // Note: This only resets the current device's settings
   }
@@ -170,7 +175,7 @@
   <div class="bg-base-100 shadow-sm sticky top-0 z-50 rounded-b-2xl mx-auto max-w-3xl" style={cssVariables()}>
     <!-- Line 1: Title -->
     <div class="text-center py-2 border-b border-base-200">
-      <span class="text-lg font-semibold">Agent Dashboard</span>
+      <span class="text-lg font-semibold">{dashboardName}</span>
     </div>
     
     <!-- Line 2: Navigation + Settings -->
@@ -238,6 +243,19 @@
       </div>
       
       <div class="space-y-8">
+        <!-- Dashboard Name -->
+        <div>
+          <label class="label">
+            <span class="label-text font-medium">Dashboard Name</span>
+          </label>
+          <input 
+            type="text" 
+            bind:value={dashboardName}
+            placeholder="Agent Dashboard"
+            class="input input-bordered w-full"
+          />
+        </div>
+        
         <!-- Theme -->
         <div>
           <label class="label">
