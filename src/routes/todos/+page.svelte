@@ -20,6 +20,13 @@
   let feedback = '';
   let feedbackType: 'success' | 'error' | '' = '';
   
+  // Edit modal state
+  let editingTodo: Todo | null = null;
+  let editTitle = '';
+  let editAssignee = '';
+  let editDueDate = '';
+  let saving = false;
+  
   async function loadTodos() {
     loading = true;
     let url = '/api/todos';
@@ -73,6 +80,45 @@
   async function deleteTodo(id: string) {
     await fetch(`/api/todos/${id}`, { method: 'DELETE' });
     loadTodos();
+  }
+  
+  function openEditModal(todo: Todo) {
+    editingTodo = todo;
+    editTitle = todo.title;
+    editAssignee = todo.assignee;
+    editDueDate = todo.due_date || '';
+  }
+  
+  function closeEditModal() {
+    editingTodo = null;
+    editTitle = '';
+    editAssignee = '';
+    editDueDate = '';
+  }
+  
+  async function saveEdit() {
+    if (!editingTodo) return;
+    saving = true;
+    
+    await fetch(`/api/todos/${editingTodo.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: editTitle,
+        assignee: editAssignee,
+        due_date: editDueDate || null
+      })
+    });
+    
+    saving = false;
+    closeEditModal();
+    loadTodos();
+  }
+  
+  async function deleteAndClose() {
+    if (!editingTodo) return;
+    await deleteTodo(editingTodo.id);
+    closeEditModal();
   }
   
   function formatDate(dateStr: string): string {
@@ -208,7 +254,10 @@
             on:change={() => toggleTodo(todo.id, todo.completed)}
             class="checkbox checkbox-primary"
           />
-          <div class="flex-1">
+          <button 
+            class="flex-1 text-left cursor-pointer hover:opacity-70 transition-opacity"
+            on:click={() => openEditModal(todo)}
+          >
             <span class:line-through={todo.completed}>{todo.title}</span>
             <div class="text-xs opacity-50 mt-1 flex items-center gap-1 flex-wrap">
               <span class="badge badge-ghost badge-xs">{todo.assignee}</span>
@@ -226,15 +275,74 @@
                 <span>· done {formatDate(todo.completed_at)}</span>
               {/if}
             </div>
-          </div>
-          <button 
-            class="btn btn-ghost btn-xs"
-            on:click={() => deleteTodo(todo.id)}
-          >
-            🗑
           </button>
         </div>
       </div>
     {/each}
+  </div>
+{/if}
+
+<!-- Edit Modal -->
+{#if editingTodo}
+  <div class="modal modal-open">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">Edit Todo</h3>
+      
+      <div class="form-control mb-4">
+        <label class="label" for="edit-title">
+          <span class="label-text">Title</span>
+        </label>
+        <input 
+          id="edit-title"
+          type="text" 
+          bind:value={editTitle}
+          class="input input-bordered rounded-xl"
+        />
+      </div>
+      
+      <div class="form-control mb-4">
+        <label class="label" for="edit-assignee">
+          <span class="label-text">Assignee</span>
+        </label>
+        <select 
+          id="edit-assignee"
+          bind:value={editAssignee} 
+          class="select select-bordered rounded-xl"
+        >
+          <option value="coby">Coby</option>
+          <option value="rodion">Rodion</option>
+        </select>
+      </div>
+      
+      <div class="form-control mb-6">
+        <label class="label" for="edit-due">
+          <span class="label-text">Due Date</span>
+        </label>
+        <input 
+          id="edit-due"
+          type="date" 
+          bind:value={editDueDate}
+          class="input input-bordered rounded-xl"
+        />
+      </div>
+      
+      <div class="modal-action">
+        <button class="btn btn-error btn-outline" on:click={deleteAndClose}>
+          Delete
+        </button>
+        <div class="flex-1"></div>
+        <button class="btn btn-ghost" on:click={closeEditModal}>
+          Cancel
+        </button>
+        <button 
+          class="btn btn-primary" 
+          on:click={saveEdit}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" on:click={closeEditModal} on:keydown={(e) => e.key === 'Escape' && closeEditModal()} role="button" tabindex="0"></div>
   </div>
 {/if}
