@@ -349,10 +349,8 @@
   // Custom icon images (check /static/icons/ folder)
   // Format: { key: 'filename.png' } - will render as <img src="/icons/filename.png">
   const customIcons: Record<string, string> = {
-    // Sources - add your custom icons here
-    // 'bluesky': 'bluesky.png',
-    // 'twitter': 'twitter.png',
-    // 'hacker news': 'hn.png',
+    // Sources
+    'youtube': 'youtube.png',
     
     // Tags
     // 'gaming': 'gaming.png',
