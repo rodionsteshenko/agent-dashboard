@@ -185,14 +185,6 @@
           📰
         </a>
         <a 
-          href="/activity" 
-          class="tab tab-sm"
-          class:tab-active={currentPath === '/activity'}
-          title="Activity"
-        >
-          📜
-        </a>
-        <a 
           href="/todos" 
           class="tab tab-sm"
           class:tab-active={currentPath === '/todos'}
@@ -207,6 +199,14 @@
           title="Projects"
         >
           🗂️
+        </a>
+        <a 
+          href="/activity" 
+          class="tab tab-sm"
+          class:tab-active={currentPath === '/activity'}
+          title="Activity"
+        >
+          📜
         </a>
       </div>
       

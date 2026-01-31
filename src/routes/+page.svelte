@@ -298,6 +298,73 @@
     'feedback': '💬'
   };
   
+  // Source-based icons (prioritized)
+  const sourceEmoji: Record<string, string> = {
+    'bluesky': '🦋',
+    'bsky': '🦋',
+    'twitter': '🐦',
+    'x': '🐦',
+    'reddit': '🤖',
+    'hacker news': '🟠',
+    'hn': '🟠',
+    'the verge': '▽',
+    'ars technica': '🔬',
+    'techcrunch': '💚',
+    'wired': '⚡',
+    'spotify': '🎧',
+    'youtube': '▶️',
+    'github': '🐙',
+    'rss': '📡',
+  };
+  
+  // Tag-based icons (fallback after source)
+  const tagEmoji: Record<string, string> = {
+    'gaming': '🎮',
+    'games': '🎮',
+    'anime': '🌸',
+    'manga': '📚',
+    'comics': '💥',
+    'marvel': '🦸',
+    'dc': '🦇',
+    'tech': '💻',
+    'ai': '🤖',
+    'music': '🎵',
+    'movies': '🎬',
+    'tv': '📺',
+    'entertainment': '🎭',
+    'sports': '⚽',
+    'retro': '👾',
+    'fantasy': '🐉',
+    'scifi': '🚀',
+    'science': '🔬',
+    'books': '📖',
+    'food': '🍕',
+    'travel': '✈️',
+    'finance': '💰',
+    'politics': '🏛️',
+    'health': '💊',
+    'fitness': '💪',
+  };
+  
+  // Get the best icon for a tile based on source and tags
+  function getTileIcon(tile: Tile): string {
+    // Check source first
+    const source = (tile.content?.source || '').toString().toLowerCase();
+    for (const [key, emoji] of Object.entries(sourceEmoji)) {
+      if (source.includes(key)) return emoji;
+    }
+    
+    // Check tags
+    const tags = tile.tags || [];
+    for (const tag of tags) {
+      const tagLower = tag.toLowerCase();
+      if (tagEmoji[tagLower]) return tagEmoji[tagLower];
+    }
+    
+    // Fall back to type emoji
+    return typeEmoji[tile.type] || '📄';
+  }
+  
   // Which types have tiles
   $: activeTileTypes = new Set(tiles.map(t => t.type));
   
@@ -510,7 +577,10 @@
           <!-- Header -->
           <div class="flex justify-between items-center text-sm opacity-70">
             <div class="flex gap-2 items-center">
-              <div class="badge badge-ghost">{tile.type}</div>
+              <div class="badge badge-ghost gap-1">
+                <span>{getTileIcon(tile)}</span>
+                <span>{tile.type}</span>
+              </div>
               {#if tile.archived}
                 <div class="badge badge-error badge-sm">archived</div>
               {:else if tile.savedForLater}
@@ -814,7 +884,10 @@
       <!-- Header -->
       <div class="flex justify-between items-center mb-4">
         <div class="flex gap-2 items-center">
-          <div class="badge badge-ghost">{tile.type}</div>
+          <div class="badge badge-ghost gap-1">
+            <span>{getTileIcon(tile)}</span>
+            <span>{tile.type}</span>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <time class="text-sm opacity-70">{formatDate(tile.created_at)}</time>

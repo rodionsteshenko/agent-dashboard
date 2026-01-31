@@ -110,11 +110,14 @@
           {#each groupedLogs[dateKey] as log}
             <div class="card bg-base-100 shadow-sm p-3">
               <div class="flex items-start gap-3">
-                <span class="text-lg shrink-0">{getStatusEmoji(log.content.status)}</span>
+                <!-- Only show status icon for non-completed statuses -->
+                {#if log.content.status && log.content.status !== 'completed'}
+                  <span class="text-lg shrink-0">{getStatusEmoji(log.content.status)}</span>
+                {/if}
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="font-medium">{log.content.action || 'Activity'}</span>
-                    {#if log.content.status}
+                    {#if log.content.status && log.content.status !== 'completed'}
                       <span class="badge badge-sm {getStatusColor(log.content.status)}">
                         {log.content.status}
                       </span>
