@@ -350,7 +350,7 @@
   // Format: { key: 'filename.png' } - will render as <img src="/icons/filename.png">
   const customIcons: Record<string, string> = {
     // Sources
-    'youtube': 'youtube.png',
+    'youtube': 'youtube.svg',
     
     // Tags
     // 'gaming': 'gaming.png',
