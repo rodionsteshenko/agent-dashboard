@@ -33,6 +33,7 @@
       <a href="/" class="btn btn-ghost text-lg font-normal">Agent Dashboard</a>
     </div>
     <div class="flex-none gap-2">
+      <a href="/todos" class="btn btn-ghost btn-sm rounded-xl">📋 Todos</a>
       <select 
         bind:value={theme} 
         class="select select-sm rounded-xl bg-base-200 border-0"
