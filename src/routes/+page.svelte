@@ -133,69 +133,90 @@
   }
   
   async function markRead(id: string, read: boolean) {
+    // Update local state immediately
+    tiles = tiles.map(t => t.id === id ? { ...t, read } : t);
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ read })
     });
-    loadTiles();
   }
   
   async function toggleStar(id: string, starred: boolean) {
+    // Update local state immediately
+    tiles = tiles.map(t => t.id === id ? { ...t, starred } : t);
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ starred })
     });
-    loadTiles();
   }
   
   async function archive(id: string) {
+    // Update local state immediately (remove from view)
+    tiles = tiles.filter(t => t.id !== id);
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ archived: true })
     });
-    loadTiles();
     loadTotalCounts();
   }
   
   async function unarchive(id: string) {
+    // Update local state immediately (remove from view)
+    tiles = tiles.filter(t => t.id !== id);
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ archived: false, savedForLater: false })
     });
-    loadTiles();
     loadTotalCounts();
   }
   
   async function togglePin(id: string, pinned: boolean) {
+    // Update local state immediately
+    tiles = tiles.map(t => t.id === id ? { ...t, pinned } : t);
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pinned })
     });
-    loadTiles();
   }
   
   async function saveForLater(id: string) {
+    // Update local state immediately (remove from "new" view)
+    tiles = tiles.filter(t => t.id !== id);
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ savedForLater: true })
     });
-    loadTiles();
     loadTotalCounts();
   }
   
   async function unsave(id: string) {
+    // Update local state immediately (remove from "saved" view)
+    tiles = tiles.filter(t => t.id !== id);
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ savedForLater: false })
     });
-    loadTiles();
     loadTotalCounts();
   }
   
@@ -203,24 +224,35 @@
     const reactions = currentReactions.includes(emoji)
       ? currentReactions.filter(r => r !== emoji)
       : [...currentReactions, emoji];
+    
+    // Update local state immediately
+    tiles = tiles.map(t => t.id === id ? { ...t, reactions } : t);
+    if (selectedTile?.id === id) {
+      selectedTile = { ...selectedTile, reactions };
+    }
+    
+    // Persist to API
     await fetch(`/api/tiles/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reactions })
     });
-    loadTiles();
   }
   
   async function toggleSubtask(tile: Tile, subtaskIndex: number) {
     const subtasks = [...(tile.content.subtasks as Array<{text: string, done: boolean}>)];
     subtasks[subtaskIndex] = { ...subtasks[subtaskIndex], done: !subtasks[subtaskIndex].done };
     const content = { ...tile.content, subtasks };
+    
+    // Update local state immediately
+    tiles = tiles.map(t => t.id === tile.id ? { ...t, content } : t);
+    
+    // Persist to API
     await fetch(`/api/tiles/${tile.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
     });
-    loadTiles(filter, filterMode);
   }
   
   let showReactionsFor: string | null = null;
