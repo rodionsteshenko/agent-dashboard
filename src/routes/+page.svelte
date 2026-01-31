@@ -2,7 +2,14 @@
   import { onMount } from 'svelte';
   import Swipeable from '$lib/Swipeable.svelte';
   
-  const REACTIONS = ['👍', '🤔', '❌', '⚠️', '🔍', '😬'];
+  const REACTIONS = [
+    { emoji: '👍', label: 'Good' },
+    { emoji: '🤔', label: 'Interesting' },
+    { emoji: '❌', label: 'Irrelevant' },
+    { emoji: '⚠️', label: 'Incorrect' },
+    { emoji: '🔍', label: 'Research' },
+    { emoji: '😬', label: 'Weird' }
+  ];
   
   interface Tile {
     id: string;
@@ -435,19 +442,18 @@
               <!-- Reaction picker -->
               <div class="dropdown dropdown-top">
                 <button tabindex="0" class="btn btn-ghost btn-xs">😊</button>
-                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box flex-row gap-1">
-                  {#each REACTIONS as emoji}
-                    <li>
-                      <button 
-                        class="btn btn-ghost btn-sm text-lg"
-                        class:btn-active={tile.reactions?.includes(emoji)}
-                        on:click={() => toggleReaction(tile.id, emoji, tile.reactions || [])}
-                      >
-                        {emoji}
-                      </button>
-                    </li>
+                <div tabindex="0" class="dropdown-content z-[1] p-2 shadow-lg bg-base-100 rounded-box min-w-[160px]">
+                  {#each REACTIONS as reaction}
+                    <button 
+                      class="btn btn-ghost btn-sm w-full justify-start gap-2 text-left"
+                      class:btn-active={tile.reactions?.includes(reaction.emoji)}
+                      on:click={() => toggleReaction(tile.id, reaction.emoji, tile.reactions || [])}
+                    >
+                      <span class="text-lg">{reaction.emoji}</span>
+                      <span class="text-xs opacity-70">{reaction.label}</span>
+                    </button>
                   {/each}
-                </ul>
+                </div>
               </div>
             </div>
             
