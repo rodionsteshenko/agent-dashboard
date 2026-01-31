@@ -616,11 +616,9 @@
               </div>
               
             {:else if tile.type === 'short'}
-              <p>{tile.content.text}</p>
-              {#if tile.content.link}
-                <a href={tile.content.link} target="_blank" class="link link-primary text-sm">
-                  {tile.content.link}
-                </a>
+              <p>{tile.content.body || tile.content.text || ''}</p>
+              {#if tile.content.source}
+                <span class="text-xs opacity-50">— {tile.content.source}</span>
               {/if}
               
             {:else if tile.type === 'article'}
@@ -1040,10 +1038,13 @@
           <div class="whitespace-pre-wrap">{tile.content.body}</div>
           
         {:else if tile.type === 'short'}
-          <p class="text-lg">{tile.content.text}</p>
-          {#if tile.content.link}
-            <a href={tile.content.link} target="_blank" class="link link-primary mt-2 block">
-              {tile.content.link}
+          <p class="text-lg">{tile.content.body || tile.content.text || ''}</p>
+          {#if tile.content.source}
+            <p class="text-sm opacity-60 mt-2">Source: {tile.content.source}</p>
+          {/if}
+          {#if tile.content.url || tile.content.link}
+            <a href={tile.content.url || tile.content.link} target="_blank" class="link link-primary mt-2 block">
+              View source →
             </a>
           {/if}
           
