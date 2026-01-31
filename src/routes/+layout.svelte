@@ -6,7 +6,7 @@
   import FeedbackButton from '$lib/FeedbackButton.svelte';
   
   let theme = $state('lofi');
-  let textSize = $state(16);
+  let textSize = $state(100); // Percentage: 50-150
   let fontFamily = $state('system');
   let borderRadius = $state('default');
   let primaryColor = $state('');
@@ -56,20 +56,21 @@
   // Reactive current path
   let currentPath = $derived($page.url.pathname);
   
-  // Calculate zoom level from text size (16px = 100%)
-  let zoomLevel = $derived(textSize / 16);
+  // Calculate zoom level from text size (100 = 100%)
+  let zoomPercent = $derived(textSize);
   
-  // Build custom styles
+  // Build custom styles - use transform scale for true zoom
   let customStyles = $derived(() => {
-    let styles = `zoom: ${zoomLevel};`;
-    
     const fontDef = fonts.find(f => f.value === fontFamily);
+    let styles = '';
     if (fontDef) {
-      styles += ` font-family: ${fontDef.stack};`;
+      styles += `font-family: ${fontDef.stack};`;
     }
-    
     return styles;
   });
+  
+  // Scale factor for transform
+  let scaleFactor = $derived(textSize / 100);
   
   let cssVariables = $derived(() => {
     let vars = '';
@@ -117,7 +118,7 @@
   
   function resetSettings() {
     theme = 'lofi';
-    textSize = 16;
+    textSize = 100;
     fontFamily = 'system';
     borderRadius = 'default';
     primaryColor = '';
@@ -134,7 +135,7 @@
   {/if}
 </svelte:head>
 
-<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()}">
+<div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()} font-size: {textSize}%;">
   <!-- Header - Two lines for mobile -->
   <div class="bg-base-100 shadow-sm sticky top-0 z-50 rounded-b-2xl mx-auto max-w-3xl" style={cssVariables()}>
     <!-- Line 1: Title -->
@@ -188,7 +189,7 @@
 <!-- Settings Modal -->
 {#if showSettings}
   <div class="modal modal-open" data-theme={theme}>
-    <div class="modal-box max-w-lg max-h-[90vh] overflow-y-auto" style="{customStyles()} {cssVariables()}">
+    <div class="modal-box max-w-lg max-h-[90vh] overflow-y-auto" style="{customStyles()} {cssVariables()} font-size: {textSize}%;">
       <div class="flex justify-between items-center mb-6">
         <h3 class="font-bold text-lg">Settings</h3>
         <button class="btn btn-ghost btn-sm btn-square" on:click={() => showSettings = false}>✕</button>
@@ -258,18 +259,18 @@
         <!-- Text Size Slider (zoom) -->
         <div>
           <label class="label">
-            <span class="label-text font-medium">Zoom: {Math.round(textSize / 16 * 100)}%</span>
+            <span class="label-text font-medium">Zoom: {textSize}%</span>
           </label>
           <input 
             type="range" 
-            min="10" 
-            max="24" 
-            step="1"
+            min="50" 
+            max="150" 
+            step="5"
             bind:value={textSize}
             class="range range-primary range-sm w-full"
           />
           <div class="flex justify-between text-xs opacity-50 mt-1">
-            <span>62%</span>
+            <span>50%</span>
             <span>100%</span>
             <span>150%</span>
           </div>
