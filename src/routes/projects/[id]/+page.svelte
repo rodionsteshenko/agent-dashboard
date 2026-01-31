@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { marked } from 'marked';
   
   interface ProjectItem {
     id: string;
@@ -35,6 +36,11 @@
   let loading = true;
   let activeTab: 'board' | 'docs' = 'board';
   let selectedItem: ProjectItem | null = null;
+  let editingItem = false;
+  let editTitle = '';
+  let editDescription = '';
+  let editCriteria = '';
+  let editAssignee = 'coby';
   let selectedDoc: ProjectDoc | null = null;
   let editingDoc = false;
   let docContent = '';
@@ -94,6 +100,40 @@
   
   async function deleteItem(itemId: string) {
     await fetch(`/api/projects/${projectId}/items/${itemId}`, { method: 'DELETE' });
+    selectedItem = null;
+    loadProject();
+  }
+  
+  function startEditItem() {
+    if (!selectedItem) return;
+    editTitle = selectedItem.title;
+    editDescription = selectedItem.description || '';
+    editCriteria = selectedItem.acceptance_criteria.join('\n');
+    editAssignee = selectedItem.assignee;
+    editingItem = true;
+  }
+  
+  function cancelEditItem() {
+    editingItem = false;
+  }
+  
+  async function saveEditItem() {
+    if (!selectedItem || !editTitle.trim()) return;
+    
+    const criteria = editCriteria.split('\n').filter(c => c.trim());
+    
+    await fetch(`/api/projects/${projectId}/items/${selectedItem.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: editTitle.trim(),
+        description: editDescription.trim() || null,
+        acceptance_criteria: criteria,
+        assignee: editAssignee
+      })
+    });
+    
+    editingItem = false;
     selectedItem = null;
     loadProject();
   }
@@ -336,10 +376,12 @@
                   rows="20"
                 ></textarea>
                 <button class="btn btn-primary mt-4" on:click={saveDoc}>Save</button>
-              {:else}
-                <div class="prose prose-sm max-w-none whitespace-pre-wrap">
-                  {selectedDoc.content || 'No content yet. Click Edit to add content.'}
+              {:else if selectedDoc.content}
+                <div class="prose prose-sm max-w-none">
+                  {@html marked(selectedDoc.content)}
                 </div>
+              {:else}
+                <p class="opacity-50 italic">No content yet. Click Edit to add content.</p>
               {/if}
             </div>
           </div>
@@ -357,59 +399,96 @@
 {#if selectedItem}
   <div class="modal modal-open">
     <div class="modal-box">
-      <h3 class="font-bold text-lg">{selectedItem.title}</h3>
-      
-      <div class="py-4 space-y-4">
-        {#if selectedItem.description}
-          <p class="opacity-80">{selectedItem.description}</p>
-        {/if}
-        
-        {#if selectedItem.acceptance_criteria.length > 0}
-          <div>
-            <h4 class="font-medium text-sm mb-2">Acceptance Criteria</h4>
-            <ul class="list-disc list-inside space-y-1 text-sm opacity-80">
-              {#each selectedItem.acceptance_criteria as criterion}
-                <li>{criterion}</li>
-              {/each}
-            </ul>
+      {#if editingItem}
+        <!-- Edit Mode -->
+        <h3 class="font-bold text-lg mb-4">Edit Item</h3>
+        <form on:submit|preventDefault={saveEditItem} class="space-y-3">
+          <input 
+            type="text" 
+            bind:value={editTitle}
+            placeholder="Item title"
+            class="input input-bordered w-full rounded-xl"
+          />
+          <textarea 
+            bind:value={editDescription}
+            placeholder="Description"
+            class="textarea textarea-bordered w-full rounded-xl"
+            rows="2"
+          ></textarea>
+          <textarea 
+            bind:value={editCriteria}
+            placeholder="Acceptance criteria (one per line)"
+            class="textarea textarea-bordered w-full rounded-xl text-sm"
+            rows="3"
+          ></textarea>
+          <select bind:value={editAssignee} class="select select-bordered rounded-xl">
+            <option value="coby">Coby</option>
+            <option value="rodion">Rodion</option>
+          </select>
+          <div class="modal-action">
+            <button type="button" class="btn btn-ghost" on:click={cancelEditItem}>Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
           </div>
-        {/if}
-        
-        <div class="flex gap-2 flex-wrap text-sm">
-          <span class="badge badge-ghost">{selectedItem.assignee}</span>
-          <span class="badge badge-outline">Priority {selectedItem.priority}</span>
-          <span class="badge" class:badge-warning={selectedItem.status === 'in-progress'} class:badge-success={selectedItem.status === 'complete'}>
-            {selectedItem.status}
-          </span>
+        </form>
+      {:else}
+        <!-- View Mode -->
+        <div class="flex justify-between items-start">
+          <h3 class="font-bold text-lg">{selectedItem.title}</h3>
+          <button class="btn btn-ghost btn-sm" on:click={startEditItem}>✏️ Edit</button>
         </div>
-      </div>
-      
-      <div class="modal-action flex-wrap gap-2">
-        {#if selectedItem.status === 'backlog'}
-          <button class="btn btn-warning" on:click={() => updateItemStatus(selectedItem.id, 'in-progress')}>
-            ▶️ Start
-          </button>
-        {:else if selectedItem.status === 'in-progress'}
-          <button class="btn btn-success" on:click={() => updateItemStatus(selectedItem.id, 'complete')}>
-            ✅ Complete
-          </button>
-          <button class="btn btn-ghost" on:click={() => updateItemStatus(selectedItem.id, 'backlog')}>
-            ↩️ Back to Backlog
-          </button>
-        {:else}
-          <button class="btn btn-ghost" on:click={() => updateItemStatus(selectedItem.id, 'backlog')}>
-            ↩️ Reopen
-          </button>
-        {/if}
         
-        <div class="flex-1"></div>
+        <div class="py-4 space-y-4">
+          {#if selectedItem.description}
+            <p class="opacity-80">{selectedItem.description}</p>
+          {/if}
+          
+          {#if selectedItem.acceptance_criteria.length > 0}
+            <div>
+              <h4 class="font-medium text-sm mb-2">Acceptance Criteria</h4>
+              <ul class="list-disc list-inside space-y-1 text-sm opacity-80">
+                {#each selectedItem.acceptance_criteria as criterion}
+                  <li>{criterion}</li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+          
+          <div class="flex gap-2 flex-wrap text-sm">
+            <span class="badge badge-ghost">{selectedItem.assignee}</span>
+            <span class="badge badge-outline">Priority {selectedItem.priority}</span>
+            <span class="badge" class:badge-warning={selectedItem.status === 'in-progress'} class:badge-success={selectedItem.status === 'complete'}>
+              {selectedItem.status}
+            </span>
+          </div>
+        </div>
         
-        <button class="btn btn-error btn-outline btn-sm" on:click={() => deleteItem(selectedItem.id)}>
-          Delete
-        </button>
-        <button class="btn btn-ghost" on:click={() => selectedItem = null}>Close</button>
-      </div>
+        <div class="modal-action flex-wrap gap-2">
+          {#if selectedItem.status === 'backlog'}
+            <button class="btn btn-warning" on:click={() => updateItemStatus(selectedItem.id, 'in-progress')}>
+              ▶️ Start
+            </button>
+          {:else if selectedItem.status === 'in-progress'}
+            <button class="btn btn-success" on:click={() => updateItemStatus(selectedItem.id, 'complete')}>
+              ✅ Complete
+            </button>
+            <button class="btn btn-ghost" on:click={() => updateItemStatus(selectedItem.id, 'backlog')}>
+              ↩️ Back to Backlog
+            </button>
+          {:else}
+            <button class="btn btn-ghost" on:click={() => updateItemStatus(selectedItem.id, 'backlog')}>
+              ↩️ Reopen
+            </button>
+          {/if}
+          
+          <div class="flex-1"></div>
+          
+          <button class="btn btn-error btn-outline btn-sm" on:click={() => deleteItem(selectedItem.id)}>
+            Delete
+          </button>
+          <button class="btn btn-ghost" on:click={() => { selectedItem = null; editingItem = false; }}>Close</button>
+        </div>
+      {/if}
     </div>
-    <div class="modal-backdrop" on:click={() => selectedItem = null} on:keydown={(e) => e.key === 'Escape' && (selectedItem = null)} role="button" tabindex="0"></div>
+    <div class="modal-backdrop" on:click={() => { selectedItem = null; editingItem = false; }} on:keydown={(e) => e.key === 'Escape' && (selectedItem = null, editingItem = false)} role="button" tabindex="0"></div>
   </div>
 {/if}
