@@ -125,7 +125,8 @@
   let showReactionsFor: string | null = null;
   
   function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
+    // SQLite stores UTC, append Z to parse correctly then display in local time
+    const date = new Date(dateStr + 'Z');
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric',
