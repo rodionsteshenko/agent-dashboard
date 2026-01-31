@@ -279,7 +279,24 @@
   $: filteredTiles = tiles;
   
   // All possible tile types (always show these)
-  const allTileTypes = ['note', 'short', 'image', 'article', 'song', 'quote', 'code', 'todo', 'log', 'digest'];
+  const allTileTypes = ['brief', 'note', 'short', 'image', 'article', 'song', 'quote', 'code', 'digest'];
+  
+  // Emoji mapping for tile types
+  const typeEmoji: Record<string, string> = {
+    'all': '📰',
+    'brief': '☀️',
+    'note': '📝',
+    'short': '💬',
+    'image': '🖼️',
+    'article': '📄',
+    'song': '🎵',
+    'quote': '💭',
+    'code': '💻',
+    'digest': '📋',
+    'todo': '✅',
+    'log': '📜',
+    'feedback': '💬'
+  };
   
   // Which types have tiles
   $: activeTileTypes = new Set(tiles.map(t => t.type));
@@ -336,7 +353,7 @@
     <!-- Main dropdown -->
     <div class="dropdown">
       <button tabindex="0" class="btn btn-sm rounded-full gap-1">
-        {filter === 'all' ? 'All' : filter}
+        {typeEmoji[filter] || '📰'}
         {#if filter === 'all' && totalAll > 0}
           <span class="badge badge-xs badge-primary">{totalAll}</span>
         {:else if filter !== 'all' && totalCounts[filter]}
@@ -344,17 +361,17 @@
         {/if}
         <span class="text-xs">▼</span>
       </button>
-      <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 mt-1">
+      <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-44 mt-1">
         <li>
           <button 
             class:active={filter === 'all'}
             on:click={() => setFilter('all')}
           >
-            <span class="flex-1">All</span>
+            <span>{typeEmoji['all']}</span>
             <span class="badge badge-sm">{totalAll}</span>
           </button>
         </li>
-        <li class="menu-title text-xs opacity-50 pt-2">Categories</li>
+        <div class="divider my-1"></div>
         {#each allTileTypes as type}
           {@const count = totalCounts[type] || 0}
           <li>
@@ -363,7 +380,7 @@
               class:opacity-50={count === 0}
               on:click={() => setFilter(type)}
             >
-              <span class="flex-1">{type}</span>
+              <span>{typeEmoji[type] || '📄'}</span>
               <span class="badge badge-sm">{count}</span>
             </button>
           </li>
@@ -383,27 +400,28 @@
   
   <!-- Expanded grid view -->
   {#if showCategoryGrid}
-    <div class="grid grid-cols-3 gap-1 mt-3 p-2 bg-base-300 rounded-xl text-sm">
+    <div class="flex flex-wrap gap-1 mt-3 p-2 bg-base-300 rounded-xl">
       <button 
-        class="btn btn-xs justify-between px-2"
+        class="btn btn-sm gap-1"
         class:btn-primary={filter === 'all'}
         class:btn-ghost={filter !== 'all'}
         on:click={() => setFilter('all')}
       >
-        <span class="truncate">All</span>
-        <span class="badge badge-xs ml-1">{totalAll}</span>
+        {typeEmoji['all']}
+        <span class="badge badge-xs">{totalAll}</span>
       </button>
       {#each allTileTypes as type}
         {@const count = totalCounts[type] || 0}
         <button 
-          class="btn btn-xs justify-between px-2"
+          class="btn btn-sm gap-1"
           class:btn-primary={filter === type}
           class:btn-ghost={filter !== type}
           class:opacity-40={count === 0 && filter !== type}
           on:click={() => setFilter(type)}
+          title={type}
         >
-          <span class="truncate">{type}</span>
-          <span class="badge badge-xs ml-1">{count}</span>
+          {typeEmoji[type] || '📄'}
+          <span class="badge badge-xs">{count}</span>
         </button>
       {/each}
     </div>
