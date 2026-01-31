@@ -137,6 +137,7 @@
       body: JSON.stringify({ archived: true })
     });
     loadTiles();
+    loadTotalCounts(); // Refresh counts
   }
   
   async function togglePin(id: string, pinned: boolean) {
@@ -155,6 +156,7 @@
       body: JSON.stringify({ savedForLater: true })
     });
     loadTiles();
+    loadTotalCounts(); // Refresh counts
   }
   
   async function toggleReaction(id: string, emoji: string, currentReactions: string[]) {
