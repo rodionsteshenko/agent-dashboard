@@ -523,13 +523,19 @@
               <p class="text-sm opacity-80">{tile.content.summary}</p>
               {#if tile.content.items}
                 <ul class="mt-2 space-y-1">
-                  {#each tile.content.items.slice(0, 4) as item}
+                  {#each tile.content.items.slice(0, 5) as item}
                     <li class="text-sm flex items-start gap-2">
-                      <span class="text-primary">→</span>
-                      <span>{item.headline}</span>
-                      {#if item.url}
-                        <a href={item.url} target="_blank" class="link link-primary text-xs">link</a>
-                      {/if}
+                      <span class="text-primary shrink-0">→</span>
+                      <div>
+                        {#if item.url}
+                          <a href={item.url} target="_blank" class="link link-primary font-medium">{item.headline || item.title || 'Read more'}</a>
+                        {:else}
+                          <span class="font-medium">{item.headline || item.title}</span>
+                        {/if}
+                        {#if item.summary}
+                          <p class="text-xs opacity-70 mt-0.5">{item.summary}</p>
+                        {/if}
+                      </div>
                     </li>
                   {/each}
                 </ul>
@@ -911,14 +917,13 @@
             <ul class="space-y-3 not-prose">
               {#each tile.content.items as item}
                 <li class="p-3 bg-base-200 rounded-lg">
-                  <div class="font-medium">{item.title || item.headline}</div>
+                  {#if item.url}
+                    <a href={item.url} target="_blank" class="font-medium link link-primary">{item.title || item.headline}</a>
+                  {:else}
+                    <div class="font-medium">{item.title || item.headline}</div>
+                  {/if}
                   {#if item.summary || item.description}
                     <p class="text-sm opacity-70 mt-1">{item.summary || item.description}</p>
-                  {/if}
-                  {#if item.url}
-                    <a href={item.url} target="_blank" class="link link-primary text-sm mt-2 inline-block">
-                      Read more →
-                    </a>
                   {/if}
                 </li>
               {/each}
