@@ -870,9 +870,9 @@
                 {#if hasOverdue}
                   <div class="mb-2">
                     <p class="text-xs font-medium text-error">⚠️ Overdue</p>
-                    <ul class="ml-4">
+                    <ul class="ml-4 list-disc list-inside">
                       {#each tile.content.todos.overdue as todo}
-                        <li class="text-sm">• {todo.title}</li>
+                        <li class="text-sm">{todo.title}</li>
                       {/each}
                     </ul>
                   </div>
@@ -881,9 +881,9 @@
                 {#if hasToday}
                   <div class="mb-2">
                     <p class="text-xs font-medium text-warning">📌 Due Today</p>
-                    <ul class="ml-4">
+                    <ul class="ml-4 list-disc list-inside">
                       {#each tile.content.todos.dueToday as todo}
-                        <li class="text-sm">• {todo.title}</li>
+                        <li class="text-sm">{todo.title}</li>
                       {/each}
                     </ul>
                   </div>
@@ -892,9 +892,9 @@
                 {#if hasUndated}
                   <div class="mb-2">
                     <p class="text-xs font-medium opacity-70">📋 Open Tasks</p>
-                    <ul class="ml-4">
+                    <ul class="ml-4 list-disc list-inside">
                       {#each tile.content.todos.undated as todo}
-                        <li class="text-sm opacity-80">• {todo.title}</li>
+                        <li class="text-sm opacity-80">{todo.title}</li>
                       {/each}
                     </ul>
                   </div>
@@ -903,9 +903,9 @@
                 {#if hasUpcoming}
                   <div>
                     <p class="text-xs font-medium opacity-50">🔜 Coming Up</p>
-                    <ul class="ml-4">
+                    <ul class="ml-4 list-disc list-inside">
                       {#each tile.content.todos.upcoming as todo}
-                        <li class="text-sm opacity-60">• {todo.title} <span class="text-xs">({todo.due_date})</span></li>
+                        <li class="text-sm opacity-60">{todo.title} <span class="text-xs">({todo.due_date})</span></li>
                       {/each}
                     </ul>
                   </div>
