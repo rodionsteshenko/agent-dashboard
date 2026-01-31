@@ -56,6 +56,9 @@
   let editingDoc = false;
   let docContent = '';
   
+  // Board filter
+  let assigneeFilter: 'all' | 'coby' | 'rodion' = 'all';
+  
   // New item form
   let showNewItem = false;
   let newTitle = '';
@@ -220,7 +223,12 @@
     if (!project) return [];
     return project.items
       .filter(i => i.status === status)
+      .filter(i => assigneeFilter === 'all' || i.assignee === assigneeFilter)
       .sort((a, b) => a.priority - b.priority);
+  }
+  
+  function getFilteredCount(status: string): number {
+    return getItemsByStatus(status).length;
   }
   
   function formatDate(dateStr: string): string {
@@ -278,13 +286,40 @@
   </div>
   
   {#if activeTab === 'board'}
-    <!-- Add Item Button -->
-    <button 
-      class="btn btn-sm btn-outline mb-4"
-      on:click={() => showNewItem = !showNewItem}
-    >
-      {showNewItem ? 'Cancel' : '+ Add Item'}
-    </button>
+    <!-- Board Controls -->
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <button 
+        class="btn btn-sm btn-outline"
+        on:click={() => showNewItem = !showNewItem}
+      >
+        {showNewItem ? 'Cancel' : '+ Add Item'}
+      </button>
+      
+      <!-- Assignee Filter -->
+      <div class="tabs tabs-boxed tabs-xs bg-base-200 rounded-lg">
+        <button 
+          class="tab"
+          class:tab-active={assigneeFilter === 'all'}
+          on:click={() => assigneeFilter = 'all'}
+        >
+          All
+        </button>
+        <button 
+          class="tab"
+          class:tab-active={assigneeFilter === 'coby'}
+          on:click={() => assigneeFilter = 'coby'}
+        >
+          Coby
+        </button>
+        <button 
+          class="tab"
+          class:tab-active={assigneeFilter === 'rodion'}
+          on:click={() => assigneeFilter = 'rodion'}
+        >
+          Rodion
+        </button>
+      </div>
+    </div>
     
     {#if showNewItem}
       <div class="card bg-base-100 shadow-md rounded-xl mb-4">
