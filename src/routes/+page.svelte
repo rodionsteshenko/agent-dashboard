@@ -37,6 +37,17 @@
   let searchMode = false;
   let searchTimeout: ReturnType<typeof setTimeout>;
   
+  // Detail view state
+  let selectedTile: Tile | null = null;
+  
+  function openDetail(tile: Tile) {
+    selectedTile = tile;
+  }
+  
+  function closeDetail() {
+    selectedTile = null;
+  }
+  
   async function loadTotalCounts() {
     // Always fetch unfiltered counts for the category selector
     const res = await fetch('/api/tiles');
@@ -388,8 +399,11 @@
             <time>{formatDate(tile.created_at)}</time>
           </div>
           
-          <!-- Content based on type -->
-          <div class="mt-2">
+          <!-- Content based on type (clickable for detail view) -->
+          <button 
+            class="mt-2 text-left w-full cursor-pointer hover:opacity-80 transition-opacity"
+            on:click={() => openDetail(tile)}
+          >
             {#if tile.type === 'todo'}
               <!-- Todo tiles are now activity notifications, not interactive -->
               <div class="flex items-center gap-2">
@@ -575,7 +589,7 @@
             {:else}
               <pre class="text-xs">{JSON.stringify(tile.content, null, 2)}</pre>
             {/if}
-          </div>
+          </button>
           
           <!-- Tags -->
           {#if tile.tags.length > 0}
@@ -637,5 +651,274 @@
       </div>
       </Swipeable>
     {/each}
+  </div>
+{/if}
+
+<!-- Detail Modal -->
+{#if selectedTile}
+  {@const tile = selectedTile}
+  <div class="modal modal-open">
+    <div class="modal-box max-w-2xl max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex gap-2 items-center">
+          <div class="badge badge-ghost">{tile.type}</div>
+          {#if tile.pinned}
+            <div class="badge badge-primary badge-sm">📌 pinned</div>
+          {/if}
+        </div>
+        <div class="flex items-center gap-2">
+          <time class="text-sm opacity-70">{formatDate(tile.created_at)}</time>
+          <button class="btn btn-ghost btn-sm btn-square" on:click={closeDetail}>✕</button>
+        </div>
+      </div>
+      
+      <!-- Full Content -->
+      <div class="prose prose-sm max-w-none">
+        {#if tile.type === 'todo'}
+          <div class="flex items-center gap-2 mb-2">
+            {#if tile.content.action === 'completed'}
+              <span class="text-success text-2xl">✓</span>
+            {:else if tile.content.action === 'added'}
+              <span class="text-primary text-2xl">+</span>
+            {:else}
+              <span class="text-info text-2xl">•</span>
+            {/if}
+            <div>
+              <span class="font-medium text-lg">{tile.content.who || tile.content.assignee || 'Someone'}</span>
+              <span class="opacity-70">
+                {#if tile.content.action === 'completed'}completed{:else if tile.content.action === 'added'}added{:else}updated{/if}
+              </span>
+              <span class="font-medium text-lg">"{tile.content.title}"</span>
+            </div>
+          </div>
+          {#if tile.content.note}
+            <p class="opacity-80">{tile.content.note}</p>
+          {/if}
+          <a href="/todos" class="btn btn-primary btn-sm mt-4">View all todos →</a>
+          
+        {:else if tile.type === 'digest'}
+          <h2 class="text-xl font-bold mb-2">{tile.content.title}</h2>
+          {#if tile.content.summary}
+            <p class="opacity-80 mb-4">{tile.content.summary}</p>
+          {/if}
+          {#if tile.content.items}
+            <ul class="space-y-3 not-prose">
+              {#each tile.content.items as item}
+                <li class="p-3 bg-base-200 rounded-lg">
+                  <div class="font-medium">{item.title || item.headline}</div>
+                  {#if item.summary || item.description}
+                    <p class="text-sm opacity-70 mt-1">{item.summary || item.description}</p>
+                  {/if}
+                  {#if item.url}
+                    <a href={item.url} target="_blank" class="link link-primary text-sm mt-2 inline-block">
+                      Read more →
+                    </a>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          {#if tile.content.myTake}
+            <div class="mt-4 p-4 bg-base-300 rounded-lg">
+              <p class="italic">💭 {tile.content.myTake}</p>
+            </div>
+          {/if}
+          
+        {:else if tile.type === 'log'}
+          <div class="flex items-center gap-3 mb-4">
+            <span class="font-mono text-lg">{tile.content.action}</span>
+            <div 
+              class="badge badge-lg"
+              class:badge-success={tile.content.status === 'completed'}
+              class:badge-error={tile.content.status === 'failed'}
+              class:badge-warning={tile.content.status === 'pending'}
+            >
+              {tile.content.status}
+            </div>
+            {#if tile.content.duration}
+              <span class="text-sm opacity-50">{tile.content.duration}</span>
+            {/if}
+          </div>
+          {#if tile.content.details}
+            <p class="opacity-80">{tile.content.details}</p>
+          {/if}
+          {#if tile.content.url}
+            <a href={tile.content.url} target="_blank" class="btn btn-primary btn-sm mt-4">
+              View →
+            </a>
+          {/if}
+          
+        {:else if tile.type === 'note'}
+          <h2 class="text-xl font-bold mb-4">{tile.content.title}</h2>
+          <div class="whitespace-pre-wrap">{tile.content.body}</div>
+          
+        {:else if tile.type === 'short'}
+          <p class="text-lg">{tile.content.text}</p>
+          {#if tile.content.link}
+            <a href={tile.content.link} target="_blank" class="link link-primary mt-2 block">
+              {tile.content.link}
+            </a>
+          {/if}
+          
+        {:else if tile.type === 'article'}
+          <div class="flex flex-col gap-4">
+            {#if tile.content.thumbnail}
+              <img 
+                src={tile.content.thumbnail} 
+                alt="" 
+                class="w-full max-h-64 object-cover rounded-lg"
+              />
+            {/if}
+            <h2 class="text-xl font-bold">{tile.content.title}</h2>
+            <p class="text-sm opacity-60">{tile.content.source}</p>
+            <p class="opacity-80">{tile.content.excerpt}</p>
+            <a href={tile.content.url} target="_blank" class="btn btn-primary">
+              Read full article →
+            </a>
+          </div>
+          
+        {:else if tile.type === 'song'}
+          <div class="flex flex-col gap-4">
+            {#if tile.content.albumArt}
+              <img 
+                src={tile.content.albumArt} 
+                alt={tile.content.album} 
+                class="w-48 h-48 object-cover rounded-lg shadow-lg mx-auto"
+              />
+            {/if}
+            <div class="text-center">
+              <h2 class="text-xl font-bold">{tile.content.title}</h2>
+              <p class="text-lg opacity-70">{tile.content.artist}</p>
+              {#if tile.content.album}
+                <p class="opacity-50">{tile.content.album} ({tile.content.year})</p>
+              {/if}
+            </div>
+            {#if tile.content.analysis}
+              <p class="opacity-80 mt-4">{tile.content.analysis}</p>
+            {/if}
+            {#if tile.content.spotifyUrl}
+              <a href={tile.content.spotifyUrl} target="_blank" class="btn btn-primary mx-auto">
+                Open in Spotify
+              </a>
+            {/if}
+          </div>
+          
+        {:else if tile.type === 'image'}
+          <figure class="flex flex-col items-center">
+            <img 
+              src={tile.content.src} 
+              alt={tile.content.alt || ''} 
+              class="rounded-lg max-w-full"
+            />
+            {#if tile.content.caption}
+              <figcaption class="text-center opacity-70 mt-4">
+                {tile.content.caption}
+              </figcaption>
+            {/if}
+          </figure>
+          
+        {:else if tile.type === 'quote'}
+          <blockquote class="border-l-4 border-primary pl-6 py-4">
+            <p class="text-2xl italic">"{tile.content.text}"</p>
+            <footer class="text-lg opacity-70 mt-4">
+              — {tile.content.author}
+              {#if tile.content.source}
+                <cite class="opacity-50">, {tile.content.source}</cite>
+              {/if}
+            </footer>
+          </blockquote>
+          
+        {:else if tile.type === 'code'}
+          {#if tile.content.title}
+            <h2 class="text-xl font-bold mb-2">{tile.content.title}</h2>
+          {/if}
+          {#if tile.content.description}
+            <p class="opacity-70 mb-4">{tile.content.description}</p>
+          {/if}
+          <pre class="bg-base-300 p-4 rounded-lg text-sm overflow-x-auto"><code>{tile.content.code}</code></pre>
+          
+        {:else if tile.type === 'feedback'}
+          <div class="flex items-start gap-3">
+            <span class="text-3xl">💬</span>
+            <div class="flex-1">
+              <h3 class="font-bold mb-2">{tile.content.title || 'Feedback'}</h3>
+              <p>{tile.content.body || tile.content.text}</p>
+              {#if tile.content.url}
+                <p class="text-sm opacity-50 mt-2">From: {tile.content.url}</p>
+              {/if}
+            </div>
+          </div>
+          
+        {:else}
+          <pre class="text-sm bg-base-300 p-4 rounded-lg overflow-x-auto">{JSON.stringify(tile.content, null, 2)}</pre>
+        {/if}
+      </div>
+      
+      <!-- Tags -->
+      {#if tile.tags.length > 0}
+        <div class="flex gap-2 flex-wrap mt-6 pt-4 border-t border-base-300">
+          {#each tile.tags as tag}
+            <div class="badge badge-outline">{tag}</div>
+          {/each}
+        </div>
+      {/if}
+      
+      <!-- Actions -->
+      <div class="modal-action mt-6 pt-4 border-t border-base-300">
+        <div class="flex gap-2 flex-1">
+          <!-- Reactions -->
+          <div class="dropdown dropdown-top">
+            <button tabindex="0" class="btn btn-ghost">😊 React</button>
+            <div tabindex="0" class="dropdown-content z-[1] p-2 shadow-lg bg-base-100 rounded-box mb-2">
+              {#each REACTIONS as reaction}
+                <button 
+                  class="btn btn-ghost btn-sm w-full justify-start gap-2"
+                  class:btn-active={tile.reactions?.includes(reaction.emoji)}
+                  on:click={() => { toggleReaction(tile.id, reaction.emoji, tile.reactions || []); }}
+                >
+                  <span class="text-lg">{reaction.emoji}</span>
+                  <span class="text-xs">{reaction.label}</span>
+                </button>
+              {/each}
+            </div>
+          </div>
+          
+          {#if tile.reactions && tile.reactions.length > 0}
+            <div class="flex items-center gap-1">
+              {#each tile.reactions as r}
+                <span class="text-xl">{r}</span>
+              {/each}
+            </div>
+          {/if}
+        </div>
+        
+        <button 
+          class="btn btn-ghost"
+          on:click={() => { togglePin(tile.id, tile.pinned); closeDetail(); }}
+        >
+          {tile.pinned ? '📌 Unpin' : '📌 Pin'}
+        </button>
+        <button 
+          class="btn btn-ghost"
+          on:click={() => { saveForLater(tile.id); closeDetail(); }}
+        >
+          📥 Save
+        </button>
+        <button 
+          class="btn btn-ghost"
+          on:click={() => { archive(tile.id); closeDetail(); }}
+        >
+          🗑 Archive
+        </button>
+      </div>
+    </div>
+    <div 
+      class="modal-backdrop bg-black/50" 
+      on:click={closeDetail} 
+      on:keydown={(e) => e.key === 'Escape' && closeDetail()}
+      role="button" 
+      tabindex="0"
+    ></div>
   </div>
 {/if}
