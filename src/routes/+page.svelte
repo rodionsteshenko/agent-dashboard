@@ -157,28 +157,36 @@
   <title>Agent Dashboard</title>
 </svelte:head>
 
-<!-- Filter tabs (fixed order) -->
-<div class="flex gap-2 mb-4 flex-wrap">
-  <button 
-    class="btn btn-sm rounded-full"
-    class:btn-primary={filter === 'all'}
-    class:btn-ghost={filter !== 'all'}
-    on:click={() => setFilter('all')}
-  >
-    All ({tiles.length})
-  </button>
-  {#each allTileTypes as type}
-    {@const count = tileCounts[type] || 0}
+<!-- Filter tabs (horizontal scroll, fixed widths) -->
+<div class="overflow-x-auto pb-2 -mx-4 px-4">
+  <div class="flex gap-2 min-w-max">
     <button 
-      class="btn btn-sm rounded-full"
-      class:btn-primary={filter === type}
-      class:btn-ghost={filter !== type}
-      class:opacity-40={count === 0 && filter !== type}
-      on:click={() => setFilter(type)}
+      class="btn btn-sm rounded-full min-w-[60px]"
+      class:btn-primary={filter === 'all'}
+      class:btn-ghost={filter !== 'all'}
+      on:click={() => setFilter('all')}
     >
-      {type}{count > 0 ? ` (${count})` : ''}
+      All
+      {#if tiles.length > 0}
+        <span class="badge badge-xs">{tiles.length}</span>
+      {/if}
     </button>
-  {/each}
+    {#each allTileTypes as type}
+      {@const count = tileCounts[type] || 0}
+      <button 
+        class="btn btn-sm rounded-full min-w-[50px]"
+        class:btn-primary={filter === type}
+        class:btn-ghost={filter !== type}
+        class:opacity-40={count === 0 && filter !== type}
+        on:click={() => setFilter(type)}
+      >
+        {type}
+        {#if count > 0}
+          <span class="badge badge-xs">{count}</span>
+        {/if}
+      </button>
+    {/each}
+  </div>
 </div>
 
 <!-- Mode toggle (only shown when viewing a specific type) -->
