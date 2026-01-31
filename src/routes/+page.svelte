@@ -353,7 +353,7 @@
     <!-- Main dropdown -->
     <div class="dropdown">
       <button tabindex="0" class="btn btn-sm rounded-full gap-1">
-        {typeEmoji[filter] || '📰'}
+        {filter === 'all' ? 'All' : filter}
         {#if filter === 'all' && totalAll > 0}
           <span class="badge badge-xs badge-primary">{totalAll}</span>
         {:else if filter !== 'all' && totalCounts[filter]}
@@ -367,7 +367,7 @@
             class:active={filter === 'all'}
             on:click={() => setFilter('all')}
           >
-            <span>{typeEmoji['all']}</span>
+            <span class="flex-1">All</span>
             <span class="badge badge-sm">{totalAll}</span>
           </button>
         </li>
@@ -380,7 +380,7 @@
               class:opacity-50={count === 0}
               on:click={() => setFilter(type)}
             >
-              <span>{typeEmoji[type] || '📄'}</span>
+              <span class="flex-1">{type}</span>
               <span class="badge badge-sm">{count}</span>
             </button>
           </li>
@@ -402,25 +402,24 @@
   {#if showCategoryGrid}
     <div class="flex flex-wrap gap-1 mt-3 p-2 bg-base-300 rounded-xl">
       <button 
-        class="btn btn-sm gap-1"
+        class="btn btn-xs gap-1"
         class:btn-primary={filter === 'all'}
         class:btn-ghost={filter !== 'all'}
         on:click={() => setFilter('all')}
       >
-        {typeEmoji['all']}
+        All
         <span class="badge badge-xs">{totalAll}</span>
       </button>
       {#each allTileTypes as type}
         {@const count = totalCounts[type] || 0}
         <button 
-          class="btn btn-sm gap-1"
+          class="btn btn-xs gap-1"
           class:btn-primary={filter === type}
           class:btn-ghost={filter !== type}
           class:opacity-40={count === 0 && filter !== type}
           on:click={() => setFilter(type)}
-          title={type}
         >
-          {typeEmoji[type] || '📄'}
+          {type}
           <span class="badge badge-xs">{count}</span>
         </button>
       {/each}
