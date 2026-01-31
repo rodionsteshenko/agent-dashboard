@@ -156,7 +156,17 @@
       body: JSON.stringify({ archived: true })
     });
     loadTiles();
-    loadTotalCounts(); // Refresh counts
+    loadTotalCounts();
+  }
+  
+  async function unarchive(id: string) {
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: false, savedForLater: false })
+    });
+    loadTiles();
+    loadTotalCounts();
   }
   
   async function togglePin(id: string, pinned: boolean) {
@@ -175,7 +185,17 @@
       body: JSON.stringify({ savedForLater: true })
     });
     loadTiles();
-    loadTotalCounts(); // Refresh counts
+    loadTotalCounts();
+  }
+  
+  async function unsave(id: string) {
+    await fetch(`/api/tiles/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ savedForLater: false })
+    });
+    loadTiles();
+    loadTotalCounts();
   }
   
   async function toggleReaction(id: string, emoji: string, currentReactions: string[]) {
@@ -398,8 +418,30 @@
   <div class="flex flex-col gap-5">
     {#each filteredTiles as tile (tile.id)}
       <Swipeable
-        on:swipeleft={() => archive(tile.id)}
-        on:swiperight={() => saveForLater(tile.id)}
+        on:swipeleft={() => {
+          if (tile.archived) {
+            // In All mode viewing archived - restore it
+            unarchive(tile.id);
+          } else if (tile.savedForLater) {
+            // In Saved mode - unsave it
+            unsave(tile.id);
+          } else {
+            // In New mode - archive it
+            archive(tile.id);
+          }
+        }}
+        on:swiperight={() => {
+          if (tile.archived) {
+            // Archived tile - restore it
+            unarchive(tile.id);
+          } else if (tile.savedForLater) {
+            // Already saved - archive it
+            archive(tile.id);
+          } else {
+            // New tile - save for later
+            saveForLater(tile.id);
+          }
+        }}
       >
       <div 
         class="card bg-base-100 shadow-md rounded-2xl border border-base-300"
@@ -412,6 +454,11 @@
           <div class="flex justify-between items-center text-sm opacity-70">
             <div class="flex gap-2 items-center">
               <div class="badge badge-ghost">{tile.type}</div>
+              {#if tile.archived}
+                <div class="badge badge-error badge-sm">archived</div>
+              {:else if tile.savedForLater}
+                <div class="badge badge-success badge-sm">saved</div>
+              {/if}
             </div>
             <time>{formatDate(tile.created_at)}</time>
           </div>
