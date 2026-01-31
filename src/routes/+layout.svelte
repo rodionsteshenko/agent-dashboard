@@ -42,27 +42,30 @@
   ];
   
   const primaryColors = [
-    { value: '', label: 'Theme Default', color: '' },
-    { value: '259 94% 51%', label: 'Blue', color: '#3b82f6' },
-    { value: '142 76% 36%', label: 'Green', color: '#22c55e' },
-    { value: '0 84% 60%', label: 'Red', color: '#ef4444' },
-    { value: '280 68% 60%', label: 'Purple', color: '#a855f7' },
-    { value: '25 95% 53%', label: 'Orange', color: '#f97316' },
-    { value: '174 72% 46%', label: 'Teal', color: '#14b8a6' },
-    { value: '330 81% 60%', label: 'Pink', color: '#ec4899' },
-    { value: '47 96% 53%', label: 'Yellow', color: '#eab308' }
+    { value: '', label: 'Default', hex: '' },
+    { value: '#3b82f6', label: 'Blue', hex: '#3b82f6' },
+    { value: '#22c55e', label: 'Green', hex: '#22c55e' },
+    { value: '#ef4444', label: 'Red', hex: '#ef4444' },
+    { value: '#a855f7', label: 'Purple', hex: '#a855f7' },
+    { value: '#f97316', label: 'Orange', hex: '#f97316' },
+    { value: '#14b8a6', label: 'Teal', hex: '#14b8a6' },
+    { value: '#ec4899', label: 'Pink', hex: '#ec4899' },
+    { value: '#eab308', label: 'Yellow', hex: '#eab308' }
   ];
   
   // Reactive current path
   let currentPath = $derived($page.url.pathname);
   
+  // Calculate zoom level from text size (16px = 100%)
+  let zoomLevel = $derived(textSize / 16);
+  
   // Build custom styles
   let customStyles = $derived(() => {
-    let styles = `font-size: ${textSize}px;`;
+    let styles = `zoom: ${zoomLevel};`;
     
     const fontDef = fonts.find(f => f.value === fontFamily);
     if (fontDef) {
-      styles += `font-family: ${fontDef.stack};`;
+      styles += ` font-family: ${fontDef.stack};`;
     }
     
     return styles;
@@ -77,12 +80,13 @@
       vars += `--rounded-box: ${radiusDef.css}; --rounded-btn: ${radiusDef.css}; --rounded-badge: ${radiusDef.css};`;
     }
     
-    // Primary color
-    if (primaryColor) {
-      vars += `--p: ${primaryColor};`;
-    }
-    
     return vars;
+  });
+  
+  // Primary color needs to be applied via style tag for proper oklch
+  let primaryStyle = $derived(() => {
+    if (!primaryColor) return '';
+    return `[data-theme] { --p: oklch(from ${primaryColor} l c h); --pf: oklch(from ${primaryColor} calc(l - 0.1) c h); }`;
   });
   
   onMount(() => {
@@ -120,11 +124,14 @@
   }
 </script>
 
-<!-- Load Inter font for option -->
+<!-- Load Inter font + dynamic primary color -->
 <svelte:head>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {#if primaryColor}
+    {@html `<style>[data-theme] { --p: ${primaryColor}; --pf: ${primaryColor}; }</style>`}
+  {/if}
 </svelte:head>
 
 <div data-theme={theme} class="min-h-screen bg-base-200" style="{customStyles()} {cssVariables()}">
@@ -220,8 +227,8 @@
                 class:btn-ghost={primaryColor !== pc.value}
                 on:click={() => primaryColor = pc.value}
               >
-                {#if pc.color}
-                  <span class="w-3 h-3 rounded-full" style="background: {pc.color}"></span>
+                {#if pc.hex}
+                  <span class="w-3 h-3 rounded-full" style="background: {pc.hex}"></span>
                 {/if}
                 {pc.label}
               </button>
@@ -246,35 +253,26 @@
               </button>
             {/each}
           </div>
-          <div class="mt-2 flex gap-2">
-            <div class="w-12 h-8 bg-primary" style="border-radius: {radiusOptions.find(r => r.value === borderRadius)?.css || '0.5rem'}"></div>
-            <span class="text-xs opacity-50 self-center">Preview</span>
-          </div>
         </div>
         
-        <!-- Text Size Slider -->
+        <!-- Text Size Slider (zoom) -->
         <div>
           <label class="label">
-            <span class="label-text font-medium">Text Size: {textSize}px</span>
+            <span class="label-text font-medium">Zoom: {Math.round(textSize / 16 * 100)}%</span>
           </label>
           <input 
             type="range" 
-            min="12" 
-            max="28" 
+            min="10" 
+            max="24" 
             step="1"
             bind:value={textSize}
             class="range range-primary range-sm w-full"
           />
           <div class="flex justify-between text-xs opacity-50 mt-1">
-            <span>12px</span>
-            <span>16px</span>
-            <span>20px</span>
-            <span>24px</span>
-            <span>28px</span>
+            <span>62%</span>
+            <span>100%</span>
+            <span>150%</span>
           </div>
-          <p class="text-sm opacity-70 mt-2" style="font-size: {textSize}px">
-            Preview: The quick brown fox jumps over the lazy dog.
-          </p>
         </div>
         
         <!-- Font Family -->
