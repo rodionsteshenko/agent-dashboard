@@ -279,7 +279,7 @@
   $: filteredTiles = tiles;
   
   // All possible tile types (always show these)
-  const allTileTypes = ['brief', 'note', 'short', 'image', 'article', 'song', 'quote', 'code', 'digest'];
+  const allTileTypes = ['brief', 'note', 'short', 'image', 'article', 'song', 'playlist', 'quote', 'code', 'digest'];
   
   // Emoji mapping for tile types
   const typeEmoji: Record<string, string> = {
@@ -290,6 +290,7 @@
     'image': '🖼️',
     'article': '📄',
     'song': '🎵',
+    'playlist': '📻',
     'quote': '💭',
     'code': '💻',
     'digest': '📋',
@@ -789,6 +790,31 @@
                 </div>
               </div>
               
+            {:else if tile.type === 'playlist'}
+              <div class="flex gap-3">
+                {#if tile.content.cover}
+                  <img 
+                    src={tile.content.cover} 
+                    alt="{tile.content.title}" 
+                    class="w-16 h-16 object-cover rounded shadow"
+                  />
+                {:else}
+                  <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-700 rounded shadow flex items-center justify-center text-2xl">🎵</div>
+                {/if}
+                <div class="flex-1">
+                  <h3 class="font-bold text-lg">{tile.content.title}</h3>
+                  {#if tile.content.description}
+                    <p class="text-sm opacity-70">{tile.content.description}</p>
+                  {/if}
+                  <p class="text-xs opacity-50 mt-1">{tile.content.tracks?.length || 0} tracks</p>
+                  {#if tile.content.spotifyUrl}
+                    <a href={tile.content.spotifyUrl} target="_blank" class="btn btn-xs btn-success mt-2">
+                      Open in Spotify
+                    </a>
+                  {/if}
+                </div>
+              </div>
+              
             {:else if tile.type === 'image'}
               <figure class="flex flex-col">
                 <img 
@@ -1224,6 +1250,54 @@
             {/if}
             {#if tile.content.spotifyUrl}
               <a href={tile.content.spotifyUrl} target="_blank" class="btn btn-primary mx-auto">
+                Open in Spotify
+              </a>
+            {/if}
+          </div>
+          
+        {:else if tile.type === 'playlist'}
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-4">
+              {#if tile.content.cover}
+                <img 
+                  src={tile.content.cover} 
+                  alt={tile.content.title} 
+                  class="w-24 h-24 object-cover rounded-lg shadow-lg"
+                />
+              {:else}
+                <div class="w-24 h-24 bg-gradient-to-br from-green-500 to-green-700 rounded-lg shadow-lg flex items-center justify-center text-4xl">🎵</div>
+              {/if}
+              <div>
+                <h2 class="text-xl font-bold">{tile.content.title}</h2>
+                {#if tile.content.description}
+                  <p class="opacity-70">{tile.content.description}</p>
+                {/if}
+                <p class="text-sm opacity-50">{tile.content.tracks?.length || 0} tracks</p>
+              </div>
+            </div>
+            
+            {#if tile.content.tracks && tile.content.tracks.length > 0}
+              <div class="bg-base-200 rounded-lg p-3">
+                <ol class="space-y-2">
+                  {#each tile.content.tracks as track, i}
+                    <li class="flex items-center gap-3 text-sm">
+                      <span class="opacity-50 w-5 text-right">{i + 1}</span>
+                      <div class="flex-1 min-w-0">
+                        <span class="font-medium">{track.title}</span>
+                        <span class="opacity-60"> · {track.artist}</span>
+                      </div>
+                    </li>
+                  {/each}
+                </ol>
+              </div>
+            {/if}
+            
+            {#if tile.content.basedOn}
+              <p class="text-xs opacity-50">Based on: {tile.content.basedOn}</p>
+            {/if}
+            
+            {#if tile.content.spotifyUrl}
+              <a href={tile.content.spotifyUrl} target="_blank" class="btn btn-success">
                 Open in Spotify
               </a>
             {/if}
