@@ -12,6 +12,8 @@
     acceptance_criteria: string[];
     status: 'backlog' | 'in-progress' | 'complete';
     priority: number;
+    phase: number;
+    sort_order: number;
     assignee: string;
     started_at: string | null;
     completed_at: string | null;
@@ -70,9 +72,9 @@
   function updateColumnArrays() {
     if (!project) return;
     const filterFn = (i: ProjectItem) => assigneeFilter === 'all' || i.assignee === assigneeFilter;
-    backlogItems = project.items.filter(i => i.status === 'backlog').filter(filterFn).sort((a, b) => a.priority - b.priority);
-    inProgressItems = project.items.filter(i => i.status === 'in-progress').filter(filterFn).sort((a, b) => a.priority - b.priority);
-    completeItems = project.items.filter(i => i.status === 'complete').filter(filterFn).sort((a, b) => a.priority - b.priority);
+    backlogItems = project.items.filter(i => i.status === 'backlog').filter(filterFn).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.priority - b.priority);
+    inProgressItems = project.items.filter(i => i.status === 'in-progress').filter(filterFn).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.priority - b.priority);
+    completeItems = project.items.filter(i => i.status === 'complete').filter(filterFn).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.priority - b.priority);
   }
   
   // Update arrays when project or filter changes
@@ -252,10 +254,29 @@
   }
   
   // Drag and drop handlers
+  let dragDisabled = true;
+  
+  function handleDragHandle(e: PointerEvent) {
+    // Enable dragging when handle is pressed
+    dragDisabled = false;
+  }
+  
   function handleDndConsider(status: 'backlog' | 'in-progress' | 'complete', e: CustomEvent) {
+    const { trigger, source } = e.detail.info;
+    // If drag is disabled and this is a drag start, cancel it
+    if (dragDisabled && trigger === TRIGGERS.DRAG_STARTED) {
+      dragDisabled = true; // Reset for next time
+      return; // Don't update items - effectively cancels the drag
+    }
+    
     if (status === 'backlog') backlogItems = e.detail.items;
     else if (status === 'in-progress') inProgressItems = e.detail.items;
     else completeItems = e.detail.items;
+    
+    // Re-disable after drop
+    if (trigger === TRIGGERS.DROPPED_INTO_ZONE || trigger === TRIGGERS.DROPPED_OUTSIDE_OF_ANY) {
+      dragDisabled = true;
+    }
   }
   
   async function handleDndFinalize(status: 'backlog' | 'in-progress' | 'complete', e: CustomEvent) {
@@ -263,19 +284,28 @@
     else if (status === 'in-progress') inProgressItems = e.detail.items;
     else completeItems = e.detail.items;
     
-    // Find the item that was dropped and update its status if it changed
-    for (const item of e.detail.items) {
+    // Update sort_order and status for all items in this column
+    const items = e.detail.items;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const updates: Record<string, unknown> = { sort_order: i };
+      
+      // Also update status if it changed (item moved between columns)
       if (item.status !== status) {
+        updates.status = status;
+        item.status = status;
+      }
+      
+      // Only update if sort_order changed or status changed
+      if (item.sort_order !== i || updates.status) {
+        item.sort_order = i;
         await fetch(`/api/projects/${projectId}/items/${item.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status })
+          body: JSON.stringify(updates)
         });
       }
     }
-    
-    // Reload to get updated timestamps
-    loadProject();
   }
   
   function formatDate(dateStr: string): string {
@@ -403,30 +433,40 @@
     {/if}
     
     <!-- Kanban Board -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <!-- Backlog -->
-      <div class="bg-base-200 rounded-xl p-3">
+    <div class="px-4 md:px-2">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Backlog -->
+        <div class="bg-base-200 rounded-xl p-3">
         <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
           📥 Backlog
           <span class="badge badge-sm">{backlogItems.length}</span>
         </h3>
         <div 
           class="space-y-2 min-h-[100px]"
-          use:dndzone={{ items: backlogItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(0,0,0,0.2)', borderRadius: '8px' } }}
+          use:dndzone={{ items: backlogItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(0,0,0,0.2)', borderRadius: '8px' }, dragDisabled, type: 'project-items' }}
           on:consider={(e) => handleDndConsider('backlog', e)}
           on:finalize={(e) => handleDndFinalize('backlog', e)}
         >
           {#each backlogItems as item (item.id)}
             <div animate:flip={{ duration: flipDurationMs }}>
               <button 
-                class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+                class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow"
+                style="touch-action: pan-y;"
                 on:click={() => selectItem(item)}
               >
                 <div class="card-body p-3">
-                  <div class="font-medium text-sm">{item.title}</div>
-                  <div class="flex gap-1 mt-1">
-                    <span class="badge badge-xs badge-ghost">{item.assignee}</span>
-                    <span class="badge badge-xs badge-outline">P{item.priority}</span>
+                  <div class="flex items-start gap-2">
+                    <span class="cursor-grab active:cursor-grabbing text-base-300 hover:text-base-content select-none px-2 py-1 bg-base-300 rounded text-lg font-bold" style="touch-action: none;" on:pointerdown={handleDragHandle}>☰</span>
+                    <div class="flex-1">
+                      <div class="font-medium text-sm">{item.title}</div>
+                      {#if item.description}
+                        <div class="text-xs opacity-70 mt-1 line-clamp-2">{item.description}</div>
+                      {/if}
+                      <div class="flex gap-1 mt-1">
+                        <span class="badge badge-xs text-white" style="background-color: {item.phase === 1 ? '#3b82f6' : item.phase === 2 ? '#8b5cf6' : item.phase === 3 ? '#10b981' : '#f97316'}">Phase {item.phase || 1}</span>
+                        <span class="badge badge-xs text-white" style="background-color: {item.priority === 1 ? '#ef4444' : item.priority === 2 ? '#eab308' : item.priority === 3 ? '#06b6d4' : '#6b7280'}">P{item.priority}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </button>
@@ -443,23 +483,33 @@
         </h3>
         <div 
           class="space-y-2 min-h-[100px]"
-          use:dndzone={{ items: inProgressItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(234,179,8,0.5)', borderRadius: '8px' } }}
+          use:dndzone={{ items: inProgressItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(234,179,8,0.5)', borderRadius: '8px' }, dragDisabled, type: 'project-items' }}
           on:consider={(e) => handleDndConsider('in-progress', e)}
           on:finalize={(e) => handleDndFinalize('in-progress', e)}
         >
           {#each inProgressItems as item (item.id)}
             <div animate:flip={{ duration: flipDurationMs }}>
               <button 
-                class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow border-l-4 border-warning cursor-grab active:cursor-grabbing"
+                class="card bg-base-100 shadow-sm rounded-lg w-full text-left hover:shadow-md transition-shadow border-l-4 border-warning"
+                style="touch-action: pan-y;"
                 on:click={() => selectItem(item)}
               >
                 <div class="card-body p-3">
-                  <div class="font-medium text-sm">{item.title}</div>
-                  <div class="flex gap-1 mt-1">
-                    <span class="badge badge-xs badge-ghost">{item.assignee}</span>
-                    {#if item.started_at}
-                      <span class="text-xs opacity-50">Started {formatDate(item.started_at)}</span>
-                    {/if}
+                  <div class="flex items-start gap-2">
+                    <span class="cursor-grab active:cursor-grabbing text-base-300 hover:text-base-content select-none px-2 py-1 bg-base-300 rounded text-lg font-bold" style="touch-action: none;" on:pointerdown={handleDragHandle}>☰</span>
+                    <div class="flex-1">
+                      <div class="font-medium text-sm">{item.title}</div>
+                      {#if item.description}
+                        <div class="text-xs opacity-70 mt-1 line-clamp-2">{item.description}</div>
+                      {/if}
+                      <div class="flex gap-1 mt-1">
+                        <span class="badge badge-xs text-white" style="background-color: {item.phase === 1 ? '#3b82f6' : item.phase === 2 ? '#8b5cf6' : item.phase === 3 ? '#10b981' : '#f97316'}">Phase {item.phase || 1}</span>
+                        <span class="badge badge-xs text-white" style="background-color: {item.priority === 1 ? '#ef4444' : item.priority === 2 ? '#eab308' : item.priority === 3 ? '#06b6d4' : '#6b7280'}">P{item.priority}</span>
+                        {#if item.started_at}
+                          <span class="text-xs opacity-50">Started {formatDate(item.started_at)}</span>
+                        {/if}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </button>
@@ -476,29 +526,40 @@
         </h3>
         <div 
           class="space-y-2 min-h-[100px]"
-          use:dndzone={{ items: completeItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(34,197,94,0.5)', borderRadius: '8px' } }}
+          use:dndzone={{ items: completeItems, flipDurationMs, dropTargetStyle: { outline: '2px dashed rgba(34,197,94,0.5)', borderRadius: '8px' }, dragDisabled, type: 'project-items' }}
           on:consider={(e) => handleDndConsider('complete', e)}
           on:finalize={(e) => handleDndFinalize('complete', e)}
         >
           {#each completeItems as item (item.id)}
             <div animate:flip={{ duration: flipDurationMs }}>
               <button 
-                class="card bg-base-100 shadow-sm rounded-lg w-full text-left opacity-70 cursor-grab active:cursor-grabbing"
+                class="card bg-base-100 shadow-sm rounded-lg w-full text-left opacity-70"
+                style="touch-action: pan-y;"
                 on:click={() => selectItem(item)}
               >
                 <div class="card-body p-3">
-                  <div class="font-medium text-sm line-through">{item.title}</div>
-                  <div class="flex gap-1 mt-1">
-                    <span class="badge badge-xs badge-ghost">{item.assignee}</span>
-                    {#if item.completed_at}
-                      <span class="text-xs opacity-50">Done {formatDate(item.completed_at)}</span>
-                    {/if}
+                  <div class="flex items-start gap-2">
+                    <span class="cursor-grab active:cursor-grabbing text-base-300 hover:text-base-content select-none px-2 py-1 bg-base-300 rounded text-lg font-bold" style="touch-action: none;" on:pointerdown={handleDragHandle}>☰</span>
+                    <div class="flex-1">
+                      <div class="font-medium text-sm line-through">{item.title}</div>
+                      {#if item.description}
+                        <div class="text-xs opacity-70 mt-1 line-clamp-2">{item.description}</div>
+                      {/if}
+                      <div class="flex gap-1 mt-1">
+                        <span class="badge badge-xs text-white" style="background-color: {item.phase === 1 ? '#3b82f6' : item.phase === 2 ? '#8b5cf6' : item.phase === 3 ? '#10b981' : '#f97316'}">Phase {item.phase || 1}</span>
+                        <span class="badge badge-xs text-white" style="background-color: {item.priority === 1 ? '#ef4444' : item.priority === 2 ? '#eab308' : item.priority === 3 ? '#06b6d4' : '#6b7280'}">P{item.priority}</span>
+                        {#if item.completed_at}
+                          <span class="text-xs opacity-50">Done {formatDate(item.completed_at)}</span>
+                        {/if}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </button>
             </div>
           {/each}
         </div>
+      </div>
       </div>
     </div>
   {:else}

@@ -31,6 +31,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
     body.description,
     body.acceptance_criteria || body.acceptanceCriteria,
     body.priority,
+    body.phase,
     body.assignee
   );
   

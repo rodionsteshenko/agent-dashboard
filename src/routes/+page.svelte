@@ -27,6 +27,27 @@
     created_at: string;
   }
   
+  // Helper to convert URLs in text to clickable links
+  function linkifyText(text: string): string {
+    if (!text) return '';
+    // Escape HTML first to prevent XSS
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    // Then convert URLs to links with clean display text
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    return escaped.replace(urlRegex, (url) => {
+      // Show "→" + domain for cleaner display
+      try {
+        const domain = new URL(url).hostname.replace('www.', '');
+        return `<a href="${url}" target="_blank" class="link link-primary">→ ${domain}</a>`;
+      } catch {
+        return `<a href="${url}" target="_blank" class="link link-primary">→ Link</a>`;
+      }
+    });
+  }
+  
   let tiles: Tile[] = [];
   let filter: string = 'all';
   let filterMode: 'new' | 'saved' | 'all' = 'new';
@@ -674,21 +695,29 @@
               <a href="/todos" class="link link-primary text-xs mt-2 inline-block">View all todos →</a>
               
             {:else if tile.type === 'digest'}
+              <!-- Header image if present -->
+              {#if tile.content.image}
+                <img src={tile.content.image} alt="" class="w-full h-32 object-cover rounded-lg -mt-1 mb-2" />
+              {/if}
               <h3 class="card-title text-base">{tile.content.title}</h3>
               <p class="text-sm opacity-80">{tile.content.summary}</p>
               {#if tile.content.items}
-                <ul class="mt-2 space-y-1">
+                <ul class="mt-2 space-y-2">
                   {#each tile.content.items.slice(0, 5) as item}
                     <li class="text-sm flex items-start gap-2">
-                      <span class="text-primary shrink-0">→</span>
-                      <div>
+                      {#if item.image}
+                        <img src={item.image} alt="" class="w-16 h-12 object-cover rounded shrink-0" />
+                      {:else}
+                        <span class="text-primary shrink-0 mt-0.5">→</span>
+                      {/if}
+                      <div class="flex-1 min-w-0">
                         {#if item.url}
-                          <a href={item.url} target="_blank" class="link link-primary font-medium">{item.headline || item.title || 'Read more'}</a>
+                          <a href={item.url} target="_blank" class="link link-primary font-medium line-clamp-2">{item.headline || item.title || 'Read more'}</a>
                         {:else}
-                          <span class="font-medium">{item.headline || item.title}</span>
+                          <span class="font-medium line-clamp-2">{item.headline || item.title}</span>
                         {/if}
-                        {#if item.summary}
-                          <p class="text-xs opacity-70 mt-0.5">{item.summary}</p>
+                        {#if item.source}
+                          <p class="text-xs opacity-50">{item.source}</p>
                         {/if}
                       </div>
                     </li>
@@ -727,11 +756,14 @@
               
             {:else if tile.type === 'note'}
               <h3 class="card-title text-base">{tile.content.title}</h3>
-              <div class="prose prose-sm max-w-none mt-2 opacity-90">
-                {tile.content.body}
+              <div class="prose prose-sm max-w-none mt-2 opacity-90 whitespace-pre-wrap">
+                {@html linkifyText(tile.content.body as string)}
               </div>
               
             {:else if tile.type === 'short'}
+              {#if tile.content.image}
+                <img src={tile.content.image} alt="" class="w-full h-40 object-cover rounded-lg mb-2" />
+              {/if}
               <p>{tile.content.body || tile.content.text || ''}</p>
               <div class="text-xs opacity-50 mt-1">
                 {#if tile.content.author}
@@ -1139,6 +1171,10 @@
           <a href="/todos" class="btn btn-primary btn-sm mt-4">View all todos →</a>
           
         {:else if tile.type === 'digest'}
+          <!-- Header image if present -->
+          {#if tile.content.image}
+            <img src={tile.content.image} alt="" class="w-full h-48 object-cover rounded-lg mb-4" />
+          {/if}
           <h2 class="text-xl font-bold mb-2">{tile.content.title}</h2>
           {#if tile.content.summary}
             <p class="opacity-80 mb-4">{tile.content.summary}</p>
@@ -1147,14 +1183,24 @@
             <ul class="space-y-3 not-prose">
               {#each tile.content.items as item}
                 <li class="p-3 bg-base-200 rounded-lg">
-                  {#if item.url}
-                    <a href={item.url} target="_blank" class="font-medium link link-primary">{item.title || item.headline}</a>
-                  {:else}
-                    <div class="font-medium">{item.title || item.headline}</div>
-                  {/if}
-                  {#if item.summary || item.description}
-                    <p class="text-sm opacity-70 mt-1">{item.summary || item.description}</p>
-                  {/if}
+                  <div class="flex gap-3">
+                    {#if item.image}
+                      <img src={item.image} alt="" class="w-24 h-16 object-cover rounded shrink-0" />
+                    {/if}
+                    <div class="flex-1 min-w-0">
+                      {#if item.url}
+                        <a href={item.url} target="_blank" class="font-medium link link-primary">{item.title || item.headline}</a>
+                      {:else}
+                        <div class="font-medium">{item.title || item.headline}</div>
+                      {/if}
+                      {#if item.source}
+                        <p class="text-xs opacity-50">{item.source}</p>
+                      {/if}
+                      {#if item.summary || item.description}
+                        <p class="text-sm opacity-70 mt-1">{item.summary || item.description}</p>
+                      {/if}
+                    </div>
+                  </div>
                 </li>
               {/each}
             </ul>
@@ -1191,9 +1237,12 @@
           
         {:else if tile.type === 'note'}
           <h2 class="text-xl font-bold mb-4">{tile.content.title}</h2>
-          <div class="whitespace-pre-wrap">{tile.content.body}</div>
+          <div class="whitespace-pre-wrap">{@html linkifyText(tile.content.body as string)}</div>
           
         {:else if tile.type === 'short'}
+          {#if tile.content.image}
+            <img src={tile.content.image} alt="" class="w-full max-h-64 object-cover rounded-lg mb-4" />
+          {/if}
           <p class="text-lg">{tile.content.body || tile.content.text || ''}</p>
           <div class="mt-3 text-sm opacity-70">
             {#if tile.content.author}

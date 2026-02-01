@@ -82,6 +82,7 @@ db.exec(`
     acceptance_criteria TEXT DEFAULT '[]',
     status TEXT DEFAULT 'backlog',
     priority INTEGER DEFAULT 3,
+    phase INTEGER DEFAULT 1,
     assignee TEXT DEFAULT 'coby',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
@@ -126,6 +127,8 @@ export interface ProjectItem {
   acceptance_criteria: string[];
   status: 'backlog' | 'in-progress' | 'complete';
   priority: number;
+  phase: number;
+  sort_order: number;
   assignee: string;
   created_at: string;
   updated_at: string;
@@ -160,6 +163,8 @@ interface ProjectItemRow {
   acceptance_criteria: string;
   status: string;
   priority: number;
+  phase: number;
+  sort_order: number;
   assignee: string;
   created_at: string;
   updated_at: string;
@@ -197,6 +202,8 @@ function rowToProjectItem(row: ProjectItemRow): ProjectItem {
     acceptance_criteria: JSON.parse(row.acceptance_criteria || '[]'),
     status: row.status as 'backlog' | 'in-progress' | 'complete',
     priority: row.priority,
+    phase: row.phase ?? 1,
+    sort_order: row.sort_order ?? 0,
     assignee: row.assignee,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -286,7 +293,7 @@ export function getProjectItems(projectId: string, status?: string): ProjectItem
     params.push(status);
   }
   
-  query += ' ORDER BY priority ASC, created_at ASC';
+  query += ' ORDER BY sort_order ASC, priority ASC, created_at ASC';
   const rows = db.prepare(query).all(...params) as ProjectItemRow[];
   return rows.map(rowToProjectItem);
 }
@@ -302,12 +309,13 @@ export function createProjectItem(
   description?: string,
   acceptanceCriteria?: string[],
   priority?: number,
+  phase?: number,
   assignee?: string
 ): ProjectItem {
   const id = crypto.randomUUID();
   db.prepare(`
-    INSERT INTO project_items (id, project_id, title, description, acceptance_criteria, priority, assignee)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO project_items (id, project_id, title, description, acceptance_criteria, priority, phase, assignee)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, 
     projectId, 
@@ -315,12 +323,13 @@ export function createProjectItem(
     description || null,
     JSON.stringify(acceptanceCriteria || []),
     priority || 3,
+    phase || 1,
     assignee || 'coby'
   );
   return getProjectItem(id)!;
 }
 
-export function updateProjectItem(id: string, updates: Partial<Pick<ProjectItem, 'title' | 'description' | 'acceptance_criteria' | 'status' | 'priority' | 'assignee'>>): ProjectItem | null {
+export function updateProjectItem(id: string, updates: Partial<Pick<ProjectItem, 'title' | 'description' | 'acceptance_criteria' | 'status' | 'priority' | 'phase' | 'sort_order' | 'assignee'>>): ProjectItem | null {
   const sets: string[] = [];
   const values: unknown[] = [];
 
@@ -328,6 +337,8 @@ export function updateProjectItem(id: string, updates: Partial<Pick<ProjectItem,
   if (updates.description !== undefined) { sets.push('description = ?'); values.push(updates.description); }
   if (updates.acceptance_criteria !== undefined) { sets.push('acceptance_criteria = ?'); values.push(JSON.stringify(updates.acceptance_criteria)); }
   if (updates.priority !== undefined) { sets.push('priority = ?'); values.push(updates.priority); }
+  if (updates.phase !== undefined) { sets.push('phase = ?'); values.push(updates.phase); }
+  if (updates.sort_order !== undefined) { sets.push('sort_order = ?'); values.push(updates.sort_order); }
   if (updates.assignee !== undefined) { sets.push('assignee = ?'); values.push(updates.assignee); }
   
   if (updates.status !== undefined) {
