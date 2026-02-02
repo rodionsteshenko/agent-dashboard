@@ -59,6 +59,60 @@
   let searchMode = false;
   let searchTimeout: ReturnType<typeof setTimeout>;
   
+  // Now widget state
+  interface NowData {
+    weather?: {
+      temp: string;
+      condition: string;
+      high?: string;
+      low?: string;
+      location: string;
+    };
+    image?: {
+      url: string;
+      description: string;
+    };
+    quote?: {
+      text: string;
+      author: string;
+      source?: string;
+    };
+  }
+  let nowData: NowData | null = null;
+  let nowLoading = true;
+  let currentTime = '';
+  
+  async function loadNowData() {
+    try {
+      const res = await fetch('/api/now');
+      nowData = await res.json();
+    } catch (e) {
+      console.error('Failed to load Now data:', e);
+    }
+    nowLoading = false;
+  }
+  
+  async function refreshQuote() {
+    try {
+      const res = await fetch('/api/now');
+      const data = await res.json();
+      if (nowData && data.quote) {
+        nowData.quote = data.quote;
+      }
+    } catch (e) {
+      console.error('Failed to refresh quote:', e);
+    }
+  }
+  
+  function updateTime() {
+    const now = new Date();
+    currentTime = now.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  }
+  
   // Detail view state
   let selectedTile: Tile | null = null;
   let touchStartX = 0;
@@ -423,12 +477,76 @@
   onMount(() => {
     loadTotalCounts();
     loadTiles();
+    loadNowData();
+    updateTime();
+    
+    // Update time every minute
+    const timeInterval = setInterval(updateTime, 60000);
+    
+    return () => {
+      clearInterval(timeInterval);
+    };
   });
 </script>
 
 <svelte:head>
   <title>Agent Dashboard</title>
 </svelte:head>
+
+<!-- Now Widget -->
+{#if !nowLoading && nowData}
+<div class="card bg-gradient-to-br from-base-200 to-base-300 shadow-lg rounded-2xl mb-6 overflow-hidden">
+  {#if nowData.image?.url}
+    <div class="relative h-32 overflow-hidden">
+      <img 
+        src={nowData.image.url} 
+        alt={nowData.image.description || 'Weather scene'} 
+        class="w-full h-full object-cover"
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-base-300 to-transparent"></div>
+      <div class="absolute bottom-2 left-4 text-white">
+        <span class="text-3xl font-light">{currentTime}</span>
+      </div>
+      {#if nowData.weather}
+        <div class="absolute bottom-2 right-4 text-white text-right">
+          <span class="text-2xl font-light">{nowData.weather.temp}</span>
+          <span class="text-sm opacity-80 block">{nowData.weather.condition}</span>
+        </div>
+      {/if}
+    </div>
+  {:else}
+    <div class="p-4 flex justify-between items-center border-b border-base-300">
+      <span class="text-2xl font-light">{currentTime}</span>
+      {#if nowData.weather}
+        <div class="text-right">
+          <span class="text-xl">{nowData.weather.temp}</span>
+          <span class="text-sm opacity-70 block">{nowData.weather.condition}</span>
+        </div>
+      {/if}
+    </div>
+  {/if}
+  
+  {#if nowData.quote}
+    <div class="p-4">
+      <blockquote class="italic text-sm opacity-90">
+        "{nowData.quote.text}"
+      </blockquote>
+      <p class="text-xs opacity-60 mt-2 text-right">
+        — {nowData.quote.author}
+        {#if nowData.quote.source}
+          <span class="opacity-50">, {nowData.quote.source}</span>
+        {/if}
+      </p>
+      <button 
+        class="btn btn-ghost btn-xs mt-2 opacity-50 hover:opacity-100"
+        on:click={refreshQuote}
+      >
+        ↻ New quote
+      </button>
+    </div>
+  {/if}
+</div>
+{/if}
 
 <!-- Search bar -->
 <div class="mb-4">
