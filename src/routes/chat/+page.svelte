@@ -12,6 +12,7 @@
   let inputText = $state('');
   let sending = $state(false);
   let messagesContainer: HTMLDivElement;
+  let debugLog = $state<string[]>([]);
   
   onMount(async () => {
     await loadMessages();
@@ -30,10 +31,19 @@
     }
   }
   
+  function debug(msg: string) {
+    debugLog = [...debugLog.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`];
+  }
+  
   async function sendMessage() {
-    if (!inputText.trim() || sending) return;
+    debug('sendMessage called');
+    if (!inputText.trim() || sending) {
+      debug(`blocked: trim=${!inputText.trim()}, sending=${sending}`);
+      return;
+    }
     
     const content = inputText.trim();
+    debug(`content: "${content.substring(0, 20)}..."`);
     inputText = '';
     
     // Show user message immediately (optimistic UI)
@@ -52,14 +62,17 @@
     await tick();
     
     try {
+      debug('fetching /api/chat...');
       // Send to gateway via proxy
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content })
       });
+      debug(`response status: ${res.status}`);
       
       const data = await res.json();
+      debug(`got data: ${JSON.stringify(data).substring(0, 50)}...`);
       
       // Replace temp message with real one (has DB id)
       if (data.userMessage) {
@@ -111,8 +124,17 @@
   }
   
   function handleSubmit(e: SubmitEvent) {
+    debug('form submit');
     e.preventDefault();
     sendMessage();
+  }
+  
+  function handleTouchEnd(e: TouchEvent) {
+    debug('touch end');
+    if (!sending && inputText.trim()) {
+      e.preventDefault();
+      sendMessage();
+    }
   }
   
   function formatTime(dateStr: string): string {
@@ -127,6 +149,15 @@
     <h1 class="text-xl font-bold">💬 Chat</h1>
     <button class="btn btn-ghost btn-sm" onclick={clearChat}>🗑️ Clear</button>
   </div>
+  
+  <!-- Debug panel -->
+  {#if debugLog.length > 0}
+    <div class="bg-warning/20 text-warning-content text-xs p-2 rounded mb-2 font-mono">
+      {#each debugLog as log}
+        <div>{log}</div>
+      {/each}
+    </div>
+  {/if}
   
   <!-- Messages -->
   <div 
@@ -188,7 +219,7 @@
         type="submit"
         class="btn btn-primary join-item"
         disabled={!inputText.trim() || sending}
-        ontouchend={(e) => { if (!sending && inputText.trim()) { e.preventDefault(); sendMessage(); } }}
+        ontouchend={handleTouchEnd}
       >
         {#if sending}
           <span class="loading loading-spinner loading-sm"></span>
