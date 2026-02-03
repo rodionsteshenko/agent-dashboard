@@ -36,41 +36,36 @@
   }
   
   async function sendMessage() {
-    try {
-      debug('sendMessage called');
-      if (!inputText.trim() || sending) {
-        debug(`blocked: trim=${!inputText.trim()}, sending=${sending}`);
-        return;
-      }
-      
-      const content = inputText.trim();
-      debug(`content: "${content.substring(0, 20)}..."`);
-      inputText = '';
-      
-      debug('creating temp msg...');
-      // Show user message immediately (optimistic UI)
-      const tempUserMsg: Message = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        role: 'user',
-        content,
-        created_at: new Date().toISOString()
-      };
-      debug('adding to messages...');
-      messages = [...messages, tempUserMsg];
-      debug('tick 1...');
-      await tick();
-      debug('scroll...');
-      scrollToBottom();
-      
-      // NOW show loading indicator (after user message is visible)
-      debug('setting sending=true...');
-      sending = true;
-      debug('tick 2...');
-      await tick();
-    } catch (err) {
-      debug(`SETUP ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    debug('sendMessage called');
+    if (!inputText.trim() || sending) {
+      debug(`blocked: trim=${!inputText.trim()}, sending=${sending}`);
       return;
     }
+    
+    const content = inputText.trim();
+    debug(`content: "${content.substring(0, 20)}..."`);
+    inputText = '';
+    
+    debug('creating temp msg...');
+    // Show user message immediately (optimistic UI)
+    const tempUserMsg: Message = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      role: 'user',
+      content,
+      created_at: new Date().toISOString()
+    };
+    debug('adding to messages...');
+    messages = [...messages, tempUserMsg];
+    debug('tick 1...');
+    await tick();
+    debug('scroll...');
+    scrollToBottom();
+    
+    // NOW show loading indicator (after user message is visible)
+    debug('setting sending=true...');
+    sending = true;
+    debug('tick 2...');
+    await tick();
     
     try {
       debug('fetching /api/chat...');
