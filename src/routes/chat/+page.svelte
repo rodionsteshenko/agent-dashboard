@@ -110,7 +110,10 @@
     }
   }
   
-  // Form handles Enter key submission automatically
+  function handleSubmit(e: SubmitEvent) {
+    e.preventDefault();
+    sendMessage();
+  }
   
   function formatTime(dateStr: string): string {
     const date = new Date(dateStr + 'Z');
@@ -170,7 +173,7 @@
   <!-- Input -->
   <form 
     class="pt-4 border-t border-base-300"
-    onsubmit={(e) => { e.preventDefault(); sendMessage(); }}
+    onsubmit={handleSubmit}
   >
     <div class="join w-full">
       <input
@@ -185,6 +188,7 @@
         type="submit"
         class="btn btn-primary join-item"
         disabled={!inputText.trim() || sending}
+        ontouchend={(e) => { if (!sending && inputText.trim()) { e.preventDefault(); sendMessage(); } }}
       >
         {#if sending}
           <span class="loading loading-spinner loading-sm"></span>
