@@ -13,6 +13,7 @@
   let sending = $state(false);
   let messagesContainer: HTMLDivElement;
   let debugLog = $state<string[]>([]);
+  let showDebug = $state(true);
   
   onMount(async () => {
     await loadMessages();
@@ -32,7 +33,13 @@
   }
   
   function debug(msg: string) {
-    debugLog = [...debugLog.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`];
+    debugLog = [...debugLog.slice(-19), `${new Date().toLocaleTimeString()}: ${msg}`];
+    // Also log to server
+    fetch('/api/debug', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msg }) 
+    }).catch(() => {});
   }
   
   async function sendMessage() {
@@ -156,9 +163,20 @@
     <button class="btn btn-ghost btn-sm" onclick={clearChat}>🗑️ Clear</button>
   </div>
   
+  <!-- Debug toggle in header -->
+  <div class="flex justify-end mb-2">
+    <button class="btn btn-xs btn-ghost" onclick={() => showDebug = !showDebug}>
+      {showDebug ? '🐛 Hide Debug' : '🐛 Show Debug'}
+    </button>
+  </div>
+  
   <!-- Debug panel -->
-  {#if debugLog.length > 0}
-    <div class="bg-warning/20 text-warning-content text-xs p-2 rounded mb-2 font-mono">
+  {#if showDebug && debugLog.length > 0}
+    <div class="bg-warning/20 text-warning-content text-xs p-2 rounded mb-2 font-mono relative">
+      <button 
+        class="btn btn-xs btn-ghost absolute right-1 top-1"
+        onclick={() => navigator.clipboard.writeText(debugLog.join('\n'))}
+      >📋</button>
       {#each debugLog as log}
         <div>{log}</div>
       {/each}
