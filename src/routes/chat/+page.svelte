@@ -37,8 +37,19 @@
     inputText = '';
     sending = true;
     
+    // Show user message immediately (optimistic UI)
+    const tempUserMsg: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+      created_at: new Date().toISOString()
+    };
+    messages = [...messages, tempUserMsg];
+    await tick();
+    scrollToBottom();
+    
     try {
-      // Send to gateway via proxy (handles both user + assistant messages)
+      // Send to gateway via proxy
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,10 +58,11 @@
       
       const data = await res.json();
       
+      // Replace temp message with real one (has DB id)
       if (data.userMessage) {
-        messages = [...messages, data.userMessage];
-        await tick();
-        scrollToBottom();
+        messages = messages.map(m => 
+          m.id === tempUserMsg.id ? data.userMessage : m
+        );
       }
       
       if (data.assistantMessage) {
@@ -154,7 +166,8 @@
       <input
         type="text"
         placeholder="Type a message..."
-        class="input input-bordered join-item flex-1"
+        class="input input-bordered join-item flex-1 text-base"
+        style="font-size: 16px;"
         bind:value={inputText}
         onkeydown={handleKeydown}
         disabled={sending}
