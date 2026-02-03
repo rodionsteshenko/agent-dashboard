@@ -136,7 +136,7 @@
   }
   
   function handleTouchEnd(e: TouchEvent) {
-    debug('touch end');
+    debug(`touch end, inputText="${inputText}"`);
     if (!sending && inputText.trim()) {
       e.preventDefault();
       sendMessage();
@@ -219,6 +219,7 @@
         class="input input-bordered join-item flex-1 text-base"
         style="font-size: 16px;"
         bind:value={inputText}
+        oninput={(e) => debug(`input: "${(e.target as HTMLInputElement).value}"`)}
         disabled={sending}
       />
       <button 
