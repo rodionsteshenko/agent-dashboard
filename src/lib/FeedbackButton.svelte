@@ -73,7 +73,7 @@
 
 <!-- Floating feedback button (hidden when modal is open) -->
 {#if !modalOpen}
-<div class="fixed bottom-4 right-4 z-50">
+<div class="fixed bottom-4 left-4 z-50">
   {#if isOpen}
     <div class="card bg-base-100 shadow-xl w-80 rounded-2xl">
       <div class="card-body p-4">
