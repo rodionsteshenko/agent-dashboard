@@ -38,31 +38,39 @@
     sending = true;
     
     try {
-      // Add user message
-      const userRes = await fetch('/api/messages', {
+      // Send to gateway via proxy (handles both user + assistant messages)
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'user', content })
+        body: JSON.stringify({ content })
       });
-      const userMsg = await userRes.json();
-      messages = [...messages, userMsg];
-      await tick();
-      scrollToBottom();
       
-      // TODO: Send to OpenClaw gateway and get response
-      // For now, just echo back
-      const assistantRes = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          role: 'assistant', 
-          content: `Echo: ${content}` 
-        })
-      });
-      const assistantMsg = await assistantRes.json();
-      messages = [...messages, assistantMsg];
-      await tick();
-      scrollToBottom();
+      const data = await res.json();
+      
+      if (data.userMessage) {
+        messages = [...messages, data.userMessage];
+        await tick();
+        scrollToBottom();
+      }
+      
+      if (data.assistantMessage) {
+        messages = [...messages, data.assistantMessage];
+        await tick();
+        scrollToBottom();
+      }
+      
+      if (data.error) {
+        console.error('Chat error:', data.error);
+        // Show error as system message
+        messages = [...messages, {
+          id: crypto.randomUUID(),
+          role: 'assistant' as const,
+          content: `⚠️ ${data.error}`,
+          created_at: new Date().toISOString()
+        }];
+        await tick();
+        scrollToBottom();
+      }
       
     } catch (err) {
       console.error('Failed to send message:', err);
