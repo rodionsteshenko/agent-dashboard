@@ -34,7 +34,8 @@ export const POST: RequestHandler = async ({ request }) => {
       body: JSON.stringify({
         model: 'openclaw',
         messages: chatMessages,
-        stream: false
+        stream: false,
+        user: 'dashboard-chat'  // Creates a separate session for dashboard
       })
     });
     
