@@ -213,6 +213,14 @@
         >
           📜
         </a>
+        <a 
+          href="/chat" 
+          class="tab tab-sm"
+          class:tab-active={currentPath === '/chat'}
+          title="Chat"
+        >
+          💬
+        </a>
       </div>
       
       <button 

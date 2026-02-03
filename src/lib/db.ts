@@ -780,4 +780,63 @@ export function searchTiles(query: string): Tile[] {
   return rows.map(rowToTile);
 }
 
+// Chat Messages table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+`);
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
+interface MessageRow {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
+}
+
+function rowToMessage(row: MessageRow): Message {
+  return {
+    id: row.id,
+    role: row.role as 'user' | 'assistant',
+    content: row.content,
+    created_at: row.created_at
+  };
+}
+
+export function getMessages(limit = 100): Message[] {
+  const rows = db.prepare(
+    'SELECT * FROM messages ORDER BY created_at ASC LIMIT ?'
+  ).all(limit) as MessageRow[];
+  return rows.map(rowToMessage);
+}
+
+export function getMessage(id: string): Message | null {
+  const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as MessageRow | undefined;
+  return row ? rowToMessage(row) : null;
+}
+
+export function createMessage(role: 'user' | 'assistant', content: string): Message {
+  const id = crypto.randomUUID();
+  db.prepare(`
+    INSERT INTO messages (id, role, content)
+    VALUES (?, ?, ?)
+  `).run(id, role, content);
+  return getMessage(id)!;
+}
+
+export function deleteAllMessages(): void {
+  db.prepare('DELETE FROM messages').run();
+}
+
 export default db;
