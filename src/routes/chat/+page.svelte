@@ -75,49 +75,79 @@
     await tick();
     
     try {
-      debug('fetching /api/chat...');
-      // Send to gateway via proxy
+      debug('fetching /api/chat (streaming)...');
+      
+      // Create placeholder for streaming response
+      const streamingMsg: Message = {
+        id: 'streaming-' + Date.now(),
+        role: 'assistant',
+        content: '',
+        created_at: new Date().toISOString()
+      };
+      messages = [...messages, streamingMsg];
+      await tick();
+      scrollToBottom();
+      
+      // Send with streaming enabled
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content, stream: true })
       });
       debug(`response status: ${res.status}`);
       
-      const data = await res.json();
-      debug(`got data: ${JSON.stringify(data).substring(0, 50)}...`);
-      
-      // Replace temp message with real one (has DB id)
-      if (data.userMessage) {
-        messages = messages.map(m => 
-          m.id === tempUserMsg.id ? data.userMessage : m
-        );
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`);
       }
       
-      if (data.assistantMessage) {
-        messages = [...messages, data.assistantMessage];
-        await tick();
-        scrollToBottom();
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let finalId = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'user') {
+                // Update user message with real ID
+                messages = messages.map(m => 
+                  m.id === tempUserMsg.id ? { ...m, id: data.id } : m
+                );
+              } else if (data.type === 'delta') {
+                // Append streaming content
+                messages = messages.map(m => 
+                  m.id === streamingMsg.id ? { ...m, content: m.content + data.content } : m
+                );
+                await tick();
+                scrollToBottom();
+              } else if (data.type === 'done') {
+                // Replace streaming message with final one
+                finalId = data.id;
+                messages = messages.map(m => 
+                  m.id === streamingMsg.id ? { ...m, id: data.id, content: data.content } : m
+                );
+              }
+            } catch {}
+          }
+        }
       }
       
-      if (data.error) {
-        console.error('Chat error:', data.error);
-        // Show error as system message
-        messages = [...messages, {
-          id: crypto.randomUUID(),
-          role: 'assistant' as const,
-          content: `⚠️ ${data.error}`,
-          created_at: new Date().toISOString()
-        }];
-        await tick();
-        scrollToBottom();
-      }
+      debug('streaming complete');
       
     } catch (err) {
       console.error('Failed to send message:', err);
+      debug(`error: ${err instanceof Error ? err.message : String(err)}`);
       // Show error to user
       messages = [...messages, {
-        id: crypto.randomUUID(),
+        id: Date.now().toString(),
         role: 'assistant' as const,
         content: `⚠️ Connection error: ${err instanceof Error ? err.message : 'Unknown error'}`,
         created_at: new Date().toISOString()
