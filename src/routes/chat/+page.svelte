@@ -35,7 +35,6 @@
     
     const content = inputText.trim();
     inputText = '';
-    sending = true;
     
     // Show user message immediately (optimistic UI)
     const tempUserMsg: Message = {
@@ -47,6 +46,10 @@
     messages = [...messages, tempUserMsg];
     await tick();
     scrollToBottom();
+    
+    // NOW show loading indicator (after user message is visible)
+    sending = true;
+    await tick();
     
     try {
       // Send to gateway via proxy
