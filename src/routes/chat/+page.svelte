@@ -181,7 +181,9 @@
   }
   
   function formatTime(dateStr: string): string {
-    const date = new Date(dateStr + 'Z');
+    // Handle both ISO strings (2026-02-03T12:30:00.000Z) and DB format (2026-02-03 12:30:00)
+    const date = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'Z');
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 </script>
@@ -235,24 +237,16 @@
             <time class="ml-1">{formatTime(msg.created_at)}</time>
           </div>
           <div class="chat-bubble {msg.role === 'user' ? 'chat-bubble-primary' : ''}">
-            {msg.content}
+            {#if msg.content}
+              {msg.content}
+            {:else if msg.role === 'assistant'}
+              <span class="loading loading-dots loading-sm"></span>
+            {/if}
           </div>
         </div>
       {/each}
     {/if}
     
-    {#if sending}
-      <div class="chat chat-start">
-        <div class="chat-image avatar placeholder">
-          <div class="bg-base-300 text-base-content rounded-full w-10">
-            <span class="text-lg">🤖</span>
-          </div>
-        </div>
-        <div class="chat-bubble">
-          <span class="loading loading-dots loading-sm"></span>
-        </div>
-      </div>
-    {/if}
   </div>
   
   <!-- Input -->
