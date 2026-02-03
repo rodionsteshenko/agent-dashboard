@@ -89,6 +89,15 @@
       
     } catch (err) {
       console.error('Failed to send message:', err);
+      // Show error to user
+      messages = [...messages, {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: `⚠️ Connection error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        created_at: new Date().toISOString()
+      }];
+      await tick();
+      scrollToBottom();
     } finally {
       sending = false;
     }
