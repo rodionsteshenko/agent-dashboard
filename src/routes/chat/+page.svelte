@@ -110,12 +110,7 @@
     }
   }
   
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
+  // Form handles Enter key submission automatically
   
   function formatTime(dateStr: string): string {
     const date = new Date(dateStr + 'Z');
@@ -173,7 +168,10 @@
   </div>
   
   <!-- Input -->
-  <div class="pt-4 border-t border-base-300">
+  <form 
+    class="pt-4 border-t border-base-300"
+    onsubmit={(e) => { e.preventDefault(); sendMessage(); }}
+  >
     <div class="join w-full">
       <input
         type="text"
@@ -181,12 +179,11 @@
         class="input input-bordered join-item flex-1 text-base"
         style="font-size: 16px;"
         bind:value={inputText}
-        onkeydown={handleKeydown}
         disabled={sending}
       />
       <button 
+        type="submit"
         class="btn btn-primary join-item"
-        onclick={sendMessage}
         disabled={!inputText.trim() || sending}
       >
         {#if sending}
@@ -196,5 +193,5 @@
         {/if}
       </button>
     </div>
-  </div>
+  </form>
 </div>
