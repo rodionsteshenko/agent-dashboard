@@ -198,6 +198,14 @@
           💬
         </a>
         <a 
+          href="/voice" 
+          class="tab tab-sm"
+          class:tab-active={currentPath === '/voice'}
+          title="Voice"
+        >
+          🎤
+        </a>
+        <a 
           href="/todos" 
           class="tab tab-sm"
           class:tab-active={currentPath === '/todos'}
