@@ -60,6 +60,36 @@ try { db.exec(`ALTER TABLE todos ADD COLUMN project_item_id TEXT`); } catch {}
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_project_item ON todos(project_item_id)`); } catch {}
 try { db.exec(`ALTER TABLE todos ADD COLUMN recurrence TEXT`); } catch {} // daily, weekly, monthly, or null
 
+// Article enrichment table - stores AI summaries, interest scores, and user ratings
+db.exec(`
+  CREATE TABLE IF NOT EXISTS article_enrichments (
+    article_id INTEGER PRIMARY KEY,
+    url TEXT UNIQUE NOT NULL,
+    ai_summary TEXT,
+    interest_score REAL DEFAULT 0.5,
+    interest_reasons TEXT,
+    user_rating INTEGER DEFAULT 0,
+    hero_image TEXT,
+    processed_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_article_url ON article_enrichments(url);
+  CREATE INDEX IF NOT EXISTS idx_article_score ON article_enrichments(interest_score);
+  CREATE INDEX IF NOT EXISTS idx_article_rating ON article_enrichments(user_rating);
+`);
+
+// User feedback for learning
+db.exec(`
+  CREATE TABLE IF NOT EXISTS article_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id INTEGER NOT NULL,
+    rating INTEGER NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (article_id) REFERENCES article_enrichments(article_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_feedback_article ON article_feedback(article_id);
+`);
+
 // Projects tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS projects (
@@ -701,14 +731,17 @@ export function getTile(id: string): Tile | null {
 export function createTile(tile: Omit<Tile, 'created_at' | 'updated_at' | 'read' | 'starred' | 'archived'>): Tile {
   const id = tile.id || crypto.randomUUID();
   db.prepare(`
-    INSERT INTO tiles (id, type, content, source, tags)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO tiles (id, type, content, source, tags, pinned, saved_for_later, reactions)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     tile.type,
     JSON.stringify(tile.content),
     tile.source ?? null,
-    JSON.stringify(tile.tags || [])
+    JSON.stringify(tile.tags || []),
+    tile.pinned ? 1 : 0,
+    tile.savedForLater ? 1 : 0,
+    JSON.stringify(tile.reactions || [])
   );
   return getTile(id)!;
 }
@@ -791,10 +824,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
 `);
 
+// Message migrations
+try { db.exec(`ALTER TABLE messages ADD COLUMN channel TEXT DEFAULT 'text'`); } catch {}
+try { db.exec(`ALTER TABLE messages ADD COLUMN audio TEXT`); } catch {}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  channel: 'text' | 'voice';
+  audio?: string;
   created_at: string;
 }
 
@@ -802,6 +841,8 @@ interface MessageRow {
   id: string;
   role: string;
   content: string;
+  channel: string;
+  audio: string | null;
   created_at: string;
 }
 
@@ -810,14 +851,18 @@ function rowToMessage(row: MessageRow): Message {
     id: row.id,
     role: row.role as 'user' | 'assistant',
     content: row.content,
+    channel: (row.channel || 'text') as 'text' | 'voice',
+    audio: row.audio ?? undefined,
     created_at: row.created_at
   };
 }
 
-export function getMessages(limit = 100): Message[] {
-  const rows = db.prepare(
-    'SELECT * FROM messages ORDER BY created_at ASC LIMIT ?'
-  ).all(limit) as MessageRow[];
+export function getMessages(limit = 100, channel?: 'text' | 'voice'): Message[] {
+  const query = channel
+    ? 'SELECT * FROM messages WHERE channel = ? ORDER BY created_at ASC LIMIT ?'
+    : 'SELECT * FROM messages ORDER BY created_at ASC LIMIT ?';
+  const params = channel ? [channel, limit] : [limit];
+  const rows = db.prepare(query).all(...params) as MessageRow[];
   return rows.map(rowToMessage);
 }
 
@@ -826,17 +871,150 @@ export function getMessage(id: string): Message | null {
   return row ? rowToMessage(row) : null;
 }
 
-export function createMessage(role: 'user' | 'assistant', content: string): Message {
+export function createMessage(role: 'user' | 'assistant', content: string, channel: 'text' | 'voice' = 'text', audio?: string): Message {
   const id = crypto.randomUUID();
   db.prepare(`
-    INSERT INTO messages (id, role, content)
-    VALUES (?, ?, ?)
-  `).run(id, role, content);
+    INSERT INTO messages (id, role, content, channel, audio)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, role, content, channel, audio ?? null);
   return getMessage(id)!;
 }
 
 export function deleteAllMessages(): void {
   db.prepare('DELETE FROM messages').run();
+}
+
+// Article Enrichments
+export interface ArticleEnrichment {
+  article_id: number;
+  url: string;
+  ai_summary: string | null;
+  interest_score: number;
+  interest_reasons: string | null;
+  user_rating: number; // -1 = thumbs down, 0 = neutral, 1 = thumbs up
+  hero_image: string | null;
+  processed_at: string;
+  created_at: string;
+}
+
+interface ArticleEnrichmentRow {
+  article_id: number;
+  url: string;
+  ai_summary: string | null;
+  interest_score: number;
+  interest_reasons: string | null;
+  user_rating: number;
+  hero_image: string | null;
+  processed_at: string;
+  created_at: string;
+}
+
+function rowToArticleEnrichment(row: ArticleEnrichmentRow): ArticleEnrichment {
+  return {
+    article_id: row.article_id,
+    url: row.url,
+    ai_summary: row.ai_summary,
+    interest_score: row.interest_score,
+    interest_reasons: row.interest_reasons,
+    user_rating: row.user_rating,
+    hero_image: row.hero_image,
+    processed_at: row.processed_at,
+    created_at: row.created_at
+  };
+}
+
+export function getArticleEnrichment(articleId: number): ArticleEnrichment | null {
+  const row = db.prepare('SELECT * FROM article_enrichments WHERE article_id = ?').get(articleId) as ArticleEnrichmentRow | undefined;
+  return row ? rowToArticleEnrichment(row) : null;
+}
+
+export function getArticleEnrichmentByUrl(url: string): ArticleEnrichment | null {
+  const row = db.prepare('SELECT * FROM article_enrichments WHERE url = ?').get(url) as ArticleEnrichmentRow | undefined;
+  return row ? rowToArticleEnrichment(row) : null;
+}
+
+export function getArticleEnrichments(articleIds: number[]): Map<number, ArticleEnrichment> {
+  if (articleIds.length === 0) return new Map();
+  const placeholders = articleIds.map(() => '?').join(',');
+  const rows = db.prepare(`SELECT * FROM article_enrichments WHERE article_id IN (${placeholders})`).all(...articleIds) as ArticleEnrichmentRow[];
+  const map = new Map<number, ArticleEnrichment>();
+  for (const row of rows) {
+    map.set(row.article_id, rowToArticleEnrichment(row));
+  }
+  return map;
+}
+
+export function upsertArticleEnrichment(
+  articleId: number,
+  url: string,
+  data: Partial<Pick<ArticleEnrichment, 'ai_summary' | 'interest_score' | 'interest_reasons' | 'hero_image'>>
+): ArticleEnrichment {
+  const existing = getArticleEnrichment(articleId);
+  
+  if (existing) {
+    const updates: string[] = [];
+    const values: (string | number | null)[] = [];
+    
+    if (data.ai_summary !== undefined) { updates.push('ai_summary = ?'); values.push(data.ai_summary); }
+    if (data.interest_score !== undefined) { updates.push('interest_score = ?'); values.push(data.interest_score); }
+    if (data.interest_reasons !== undefined) { updates.push('interest_reasons = ?'); values.push(data.interest_reasons); }
+    if (data.hero_image !== undefined) { updates.push('hero_image = ?'); values.push(data.hero_image); }
+    updates.push("processed_at = datetime('now')");
+    
+    if (updates.length > 0) {
+      values.push(articleId);
+      db.prepare(`UPDATE article_enrichments SET ${updates.join(', ')} WHERE article_id = ?`).run(...values);
+    }
+  } else {
+    db.prepare(`
+      INSERT INTO article_enrichments (article_id, url, ai_summary, interest_score, interest_reasons, hero_image)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      articleId,
+      url,
+      data.ai_summary ?? null,
+      data.interest_score ?? 0.5,
+      data.interest_reasons ?? null,
+      data.hero_image ?? null
+    );
+  }
+  
+  return getArticleEnrichment(articleId)!;
+}
+
+export function rateArticle(articleId: number, rating: -1 | 0 | 1): ArticleEnrichment | null {
+  const existing = getArticleEnrichment(articleId);
+  if (!existing) return null;
+  
+  // Update the enrichment
+  db.prepare('UPDATE article_enrichments SET user_rating = ? WHERE article_id = ?').run(rating, articleId);
+  
+  // Log feedback for learning
+  db.prepare('INSERT INTO article_feedback (article_id, rating) VALUES (?, ?)').run(articleId, rating);
+  
+  return getArticleEnrichment(articleId);
+}
+
+export function getArticleFeedbackStats(): { liked: number; disliked: number; total: number } {
+  const stats = db.prepare(`
+    SELECT 
+      SUM(CASE WHEN user_rating = 1 THEN 1 ELSE 0 END) as liked,
+      SUM(CASE WHEN user_rating = -1 THEN 1 ELSE 0 END) as disliked,
+      COUNT(*) as total
+    FROM article_enrichments WHERE user_rating != 0
+  `).get() as { liked: number; disliked: number; total: number };
+  return stats || { liked: 0, disliked: 0, total: 0 };
+}
+
+export function getRecentFeedback(limit = 50): Array<{ url: string; rating: number; ai_summary: string | null }> {
+  const rows = db.prepare(`
+    SELECT url, user_rating as rating, ai_summary 
+    FROM article_enrichments 
+    WHERE user_rating != 0 
+    ORDER BY processed_at DESC 
+    LIMIT ?
+  `).all(limit) as Array<{ url: string; rating: number; ai_summary: string | null }>;
+  return rows;
 }
 
 export default db;
