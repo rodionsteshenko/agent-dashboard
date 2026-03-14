@@ -25,3 +25,7 @@ vite.config.ts.timestamp-*
 # Database
 data/
 *.db
+
+# Generated assets (morning brief audio/images, etc.)
+static/audio/
+static/images/morning-*.png
